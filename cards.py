@@ -15,9 +15,9 @@ def return_deck():
         for special in specials:
             deck.append((color, special))
             deck.append((color, special))
-    for _ in range(4):    # Append black cards
-        deck.append(("black", "4 wild"))
-        deck.append(("black", "4 wild draw"))
+    for _ in range(4):    # Append black cards. None in third index is the possible color for the card to change into.
+        deck.append(["black", "wild", None])
+        deck.append(["black", "wild draw", None])
     random.shuffle(deck)
     return deck 
  
