@@ -38,15 +38,33 @@ class AI:
     def __init__(self, name, deck):
         self.name = name 
         self.deck = deck
-        self.hatred = []
-        self.target = None
-        self.target_level = 0 
+        self.hatred = None
+        self.prevent_win = None  # <--- Player name
+        self.threat_level = 0
+        self.no_draw_cards = False 
         self.skip = False 
-        self.reverse = False  
+        self.reverse = False
+        self.previous_deck_length = len(self.deck)
+        self.future_move = None 
     
-    def play(self, game_deck, current_board_color, current_board_number):
-        if self.target:
-            card = draw_card_case(self.deck, current_board_color, current_board_number, self.target_level)
+    def play(self, current_board_color, current_board_number):
+        if (self.threat_level or self.prevent_win is not None) and not self.no_draw_cards:
+            # To prevent function from running without need. Only check when no_draw_cards is set to False. If no_draw_cards is set to true. Have a function that checks if the length of our card deck was greater than our last turns. If that is true then set no_draw_cards to False.
+            # Prevent win should possibly contain the player name. With that the bot can determine hatred for that player. If hatred is above certain threshold the threat_level will be 2. (Prioritize wild draw) or threat_level 1 (Prioritize draw)
+            # Depending on hate for the player the bot will try more cards in order to prevent them from winning. (If draw_card_case yields None. Go to reverse priority next, or skip priority)
+            # If hatred is high enough. The bot will actively try to guess the flaws of the hated players deck (If the player is playing a lot of blue's the bot can try to change the color to something else.)
+            if self.threat_level:  # If being threatened by a card stack
+                card = draw_card_case(self.deck, current_board_color, self.threat_level)
+            elif self.prevent_win: # If preventing a player win (Different threat levels)
+                if self.hatred[self.prevent_win] >= 5:
+                    card = draw_card_case(self.deck, current_board_color, 2)
+                else:
+                    card = draw_card_case(self.deck, current_board_color, 1)
+            if card is None and self.threat_level:
+                return "pickup"
+            else:
+                self.no_draw_cards = True 
+                card = no_priority(self.deck, current_board_color, current_board_number)
         elif self.reverse:
             card = reverse_priority(self.deck, current_board_color, current_board_number)
         elif self.skip:
@@ -57,12 +75,64 @@ class AI:
             return "pickup"
         print(f"{self.name} played {(card[0], card[1])}!")
         card_index = self.deck.index(card)
+        self.manage_draw_card_flag()
         return card_index, card 
-        
+    
+    def manage_draw_card_flag(self):
+        response = check_if_new_cards_added(self.deck, self.previous_deck_length) # Check if new cards have been added. If true reset flags
+        if response:
+            self.no_draw_cards = False 
+        self.previous_deck_length = len(self.deck)
+    
+    def set_hatred(self, player_list):
+        for player in player_list:
+            if player.name != self.name:
+                self.hatred[player.name] = 0
+    
+    def target_player(self, game_color, target_player, player_rotation, current_player_index):
+        hatred = self.hatred[target_player]
+        before_or_after = self.is_target_before_or_after(target_player, player_rotation, current_player_index)
+        draw_cards_available = self.check_if_draw_cards_available()
+        if hatred > 8: # High level hatred move 
+            if before_or_after == "before" and draw_cards_available:  # If player is before me and I have a draw card should I should reverse so I can stack cards on them.
+                reverse_card_available = self.check_if_draw_cards_available(game_color)
+                pass
+    
+    def check_if_reverse_cards_available(self, current_color):
+        for card_index, card in enumerate(self.deck):
+            if card[0] == current_color and card[1] == "reverse":
+                return card_index, card
+        return None 
+            
+                       
+    def check_if_draw_cards_available(self, current_color):
+        for card_index, card in enumerate(self.deck):
+            if (card[0] == current_color and card[1] == "draw") or card[1] == "wild draw":
+                return card_index, card 
+        return None 
+    
+    
+    def is_target_before_or_after(self, target_player, player_rotation, current_player_index):
+        if target_player == player_rotation[current_player_index - 1]:
+            return "before"
+        elif current_player_index == len(player_rotation) - 1:
+            if target_player == player_rotation[0]:
+                return "after"
+        elif target_player == player_rotation[current_player_index + 1]:
+            return "after"
+        else:
+            return None 
+
     def __repr__(self):
         return self.name
     
-    
+
+def check_if_new_cards_added(deck, previous_deck_length):
+    if len(deck) > previous_deck_length:
+        return True
+    else:
+        return False 
+
 def no_priority(deck, game_color, game_number):
     """
     Filter out cards that are not same color or number as current board color/number.
@@ -91,14 +161,14 @@ def no_priority(deck, game_color, game_number):
     if card_ratings:
         card = sort_highest_rated(card_ratings)
         if card[0] == "black":
-            new_color = color_change(color_stats, game_color, card)
-            card[2] = new_color             
+            new_color = color_change(color_stats, game_color)
+            card[2] = new_color           
         return card
     else:
         return None
     
 
-def draw_card_case(deck, game_color, game_number, threat_level):
+def draw_card_case(deck, game_color, threat_level):
     """
     Depending on thereat level, cards will be rated differently.
     If threat level is 1:
@@ -111,8 +181,9 @@ def draw_card_case(deck, game_color, game_number, threat_level):
         Targeting set to false will prevent waste of resources.
         If a card is picked up and it's a draw card OR the game board color has changed and a draw card is now available.
         Remember_target will be set to false and targeting set to true.
-        Lanuch base case if no card available."""
+        Launch base case if no card available."""
     card_ratings = []
+    color_stats = count_colored_amount(deck)
     if threat_level == 1:
         for card in deck:
             if card[0] == game_color and card[1] == "draw":
@@ -127,9 +198,12 @@ def draw_card_case(deck, game_color, game_number, threat_level):
                 card_ratings.append((card, 10))
     if card_ratings:
         card = sort_highest_rated(card_ratings)
+        if card[0] == "black":
+            new_color = color_change(color_stats, game_color)
+            card[2] = new_color
         return card
     else:
-        return no_priority(deck, game_color, game_number)
+        return None 
 
 
 def reverse_priority(deck, game_color, game_number):
@@ -159,7 +233,7 @@ def pick_up_card(game_deck):
     return game_deck.pop()
 
 
-def color_change(deck_color_stats, current_color, card):
+def color_change(deck_color_stats, current_color):
     lowest_number_color = deck_color_stats[2]  # Might be used in future
     highest_number_color = deck_color_stats[1]
     amount_each_color = deck_color_stats[0]  # Might be used in future
