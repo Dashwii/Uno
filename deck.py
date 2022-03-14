@@ -1,10 +1,13 @@
 import random 
 
+
+
+
+
 def return_deck():
     colors = ["red", "blue", "green", "yellow"]
     specials = ["skip", "reverse", "draw"]
     deck = []
-    random.shuffle(deck)
     for color in colors:  # Append 0-9 color cards
         for number in range(0, 10):
             deck.append((color, number))
@@ -20,4 +23,3 @@ def return_deck():
         deck.append(["black", "wild draw", None])
     random.shuffle(deck)
     return deck 
- 
