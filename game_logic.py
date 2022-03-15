@@ -4,7 +4,6 @@ from deck import return_deck
 from random import shuffle
 from render import *
 import time
-from deck import Card # Temp
 
 
 AI_NAME_LIST = list(reversed(["Bot", "Bot2", "Bot3"]))
@@ -36,6 +35,9 @@ class Board:
         self.card_dealer = DealingCardState(self.rotation_list, self.deck, self.card_rendering)
 
         self.reset = False
+
+        pygame.mixer.music.play()
+        pygame.event.wait()
 
     def play(self):
         self.all_states[self.current_state]()
@@ -122,7 +124,6 @@ class GameFlowState:
             self.update_rotation_interface_color("white")
             self.reset_players_status()
             self.player_rotation()
-            #print(self.rotation_list[self.current_player_index].deck, self.rotation_list[self.current_player_index].name)
             self.iterate_rotation = False
             self.update_rotation_interface_color("green")
             if self.next_round_skip:
@@ -160,7 +161,7 @@ class GameFlowState:
 
     def play_move(self):
         if self.camera_pov_index == self.current_player_index:
-            self.play_player_move()
+            self.play_player_move(self.board.game.events)
         else:
             self.play_ai_move()
 
@@ -197,7 +198,7 @@ class GameFlowState:
             pygame.display.update()
 
 
-    def play_player_move(self):
+    def play_player_move(self, events):
         if self.skipped:
             if self.round_delay_switch():
                 self.iterate_rotation = True
@@ -234,7 +235,7 @@ class GameFlowState:
                     player.status = None
             elif player.status is None:
                 self.allow_render_raised_card = True
-                player.input(self.current_board_color, self.current_board_type)
+                player.input(self.current_board_color, self.current_board_type, events)
                 if player.decision is not None:
                     card = player.deck.pop(player.current_hovered_card_index)
                     self.selected_card_logic(card)
@@ -368,6 +369,7 @@ class GameFlowState:
             self.card_rendering.card_pickup_animation(card, self.current_player_index)
             if self.current_stack > 0:
                 self.current_stack -= 1
+            return card # Card will be returned if needed in case it's needed to checks.
 
     def deck_rebuild_checker(self):
         if len(self.deck) - 1 < 0:
@@ -466,80 +468,3 @@ Prevent Win: Bots will try to prevent a player from winning. If someone on the b
 of the AI playing draw cards skyrocket unless they have a priority that's more important. (Like determining they will win first so saving their draw cards is useful instead).
 The chances of using cards like skip and reverse if the player that's about to win is after them also raise as well.
 """
-
-
-# Old Player logic
-# if self.skipped:
-#     if self.round_delay_switch():
-#         self.iterate_rotation = True
-#     return
-# if self.current_stack:
-#     player.threat_level = 1
-# if self.current_stack > 0:  # If a player picks up a draw card in the middle of picking up cards they can ignore picking up the rest of the cards. Need a better method.
-#     pickup_needed = player.threat_check()
-#     if pickup_needed:
-#         player.decision = "pickup"
-#
-# if player.decision != "pickup" and player.status != "waiting":
-#     player.input(self.current_board_color, self.current_board_type)
-#
-# if player.decision is None and player.status is None:
-#     self.allow_render_raised_card = True
-#
-# if player.decision == "pickup" and player.status != "waiting":
-#     self.allow_render_raised_card = False
-#     self.pickup_cards()
-#
-# elif player.decision is not None and player.status != "waiting":
-#     card = player.deck.pop(player.current_hovered_card_index)
-#     # Code for card logic goes here
-#     if card.card_color in ("red", "green", "blue", "yellow"):
-#         self.current_board_color = card.card_color
-#     elif card.card_color == "black":
-#         pass
-#         # Set a flag for the function to wait for the player to choose their new color.
-#         # Next time the function is ran it will check if card.wild_color has changed and then set the players status to waiting.
-#         # get_color_change_input()
-#     self.current_board_type = card.card_type
-#     if card.card_type not in range(0, 9) and card.card_type != "wild":
-#         self.special_cards(card.card_type)
-#     self.current_board_type = card.card_type
-#
-#     self.allow_render_raised_card = False
-#     self.card_rendering.card_leaving_deck_animation(card)
-#     player.status = "waiting"
-
-# Old AI logic
-
-# if self.skipped:
-        #     if self.round_delay_switch():
-        #         self.iterate_rotation = True
-        #     return
-        # current_player = self.rotation_list[self.current_player_index]
-        # if self.current_stack:
-        #     current_player.threat_level = 1
-        # else:
-        #     current_player.threat_level = 0  # There is potential for the threat level to go up to 2. I forgot what triggers it though
-        #
-        # # In future add a random interval variable to give illusion of AI taking time to choose
-        # if current_player.decision is None:
-        #     current_player.play(self.current_board_color, self.current_board_type)
-        #
-        # # AI needs to pickup cards
-        # if current_player.decision == "pickup" and current_player.status != "waiting":
-        #     self.pickup_cards()  # <-- Function will make current players status waiting once its done adding cards
-        #
-        # elif current_player.decision is not None and current_player.status != "waiting":
-        #     card = current_player.deck.pop(current_player.chosen_card_index)
-        #     if card.card_color in ("red", "green", "blue", "yellow"):
-        #         self.current_board_color = card.card_color
-        #     elif card.card_color == "black":
-        #         self.current_board_color = card.wild_color
-        #     self.current_board_type = card.card_type
-        #     if card.card_type not in range(0, 9) and card.card_type != "wild":  # <-- Handle special type cards
-        #         self.special_cards(card.card_type)
-        #
-        #     self.card_rendering.card_leaving_deck_animation(card)
-        #     current_player.status = "waiting"
-        #
-        # if current_player.status == "waiting":

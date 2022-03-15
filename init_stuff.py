@@ -16,6 +16,9 @@ GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 YELLOW = (255, 255, 0)
 
+pygame.mixer.init()
+pygame.mixer.music.load("assets/music/music flip theme.mp3")
+pygame.mixer.music.set_volume(0.05)
 
 display = pygame.display.set_mode((WIDTH, HEIGHT))
 
