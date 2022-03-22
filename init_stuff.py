@@ -1,8 +1,14 @@
 import pygame
 
 
-WIDTH = 1920
-HEIGHT = 1080
+WIDTH = 1536
+HEIGHT = 864
+
+DESIGN_WIDTH = 1920
+DESIGN_HEIGHT = 1080
+
+SCALING_RATIO = DESIGN_WIDTH / WIDTH
+
 FPS = 60
 
 CARD_WIDTH = 150
@@ -109,3 +115,26 @@ card_image_map = {('Blue', '0'): Blue_0, ('Blue', '1'): Blue_1, ('Blue', '2'): B
 
 wild_image_color_map = {"red": Red_Wild, "green": Green_Wild, "blue": Blue_Wild, "yellow": Yellow_Wild}
 wild_draw_image_color_map = {"red": Red_Wild_Draw, "green": Green_Wild_Draw, "blue": Blue_Wild_Draw, "yellow": Yellow_Wild_Draw}
+
+# Blue_0 = pygame.transform.scale(Blue_0, (100, 100))
+# print(Blue_0.get_size())
+# print(card_image_map[("Blue", "0")].get_size())
+# print(id(card_image_map[("Blue", "0")]), id(Blue_0))
+
+
+
+def asset_scaler():
+    for key, image in card_image_map.items():
+        image = pygame.transform.scale(image, (image.get_width() / SCALING_RATIO, image.get_height() / SCALING_RATIO))
+        card_image_map[key] = image
+    remaining_assets = [Uno_Back, BOARD_DIRECTION, BOARD_DIRECTION_REVERSE, SKIPPED_ICON, BACKGROUND, BACKGROUND_ALT]
+    for asset in remaining_assets:
+        print(asset.get_size())
+        pygame.transform.scale(asset, (asset.get_width() / SCALING_RATIO, asset.get_height() / SCALING_RATIO))
+        print(asset.get_size())
+
+"""
+I have no idea why pygame doesn't allow for scaling objects in place. I need to reassign their variable for things to take place.
+To bypass this I'll create a sprite class that will take from pygames surface class and add methods for rescaling them.
+There is also pygame.sprite.Sprite so I should maybe look into that."""
+
