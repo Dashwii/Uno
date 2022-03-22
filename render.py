@@ -18,7 +18,6 @@ class CardRendering:
 
     def card_leaving_deck_animation(self, card):
         self.moving_cards_leaving.append(card)
-        #set_spawn_leaving(card, self.board.game_flow.current_player_index, self.camera_pov_index)
         card_leaving_deck_spawn_location(card, self.board.game_flow.current_player_index, self.camera_pov_index)
 
     def check_moving_cards_leaving_done(self):
@@ -66,4 +65,3 @@ class CardRendering:
             self.display.blit(wild_draw_image_color_map[last_card.wild_color], (WIDTH // 2 - last_card.rect.width // 2, HEIGHT // 2 - last_card.rect.height // 2))
         else:
             self.display.blit(last_card.image, (WIDTH // 2 - last_card.rect.width // 2, HEIGHT // 2 - last_card.rect.height // 2))
-

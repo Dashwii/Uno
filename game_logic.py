@@ -114,7 +114,6 @@ class GameFlowState:
 
         self.next_round_skip = False
 
-
     def game_loop(self):
         self.play_move()
         self.render_used_deck()
