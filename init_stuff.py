@@ -1,18 +1,19 @@
 import pygame
+from pygame.locals import RESIZABLE
 
-
-WIDTH = 1536
-HEIGHT = 864
+WIDTH = 1920
+HEIGHT = 1080
 
 DESIGN_WIDTH = 1920
 DESIGN_HEIGHT = 1080
+
 
 SCALING_RATIO = DESIGN_WIDTH / WIDTH
 
 FPS = 60
 
-CARD_WIDTH = 150
-CARD_HEIGHT = 200
+CARD_WIDTH = 150 / SCALING_RATIO
+CARD_HEIGHT = 200 / SCALING_RATIO
 
 
 BLACK = (0, 0, 0)
@@ -26,11 +27,11 @@ pygame.mixer.init()
 pygame.mixer.music.load("assets/music/music flip theme.mp3")
 pygame.mixer.music.set_volume(0.05)
 
-display = pygame.display.set_mode((WIDTH, HEIGHT))
+display = pygame.display.set_mode((WIDTH, HEIGHT), RESIZABLE)
 
-BOARD_DIRECTION = pygame.image.load("assets/Uno Game Assets/board_direction.png").convert_alpha()
-BOARD_DIRECTION_REVERSE = pygame.image.load("assets/Uno Game Assets/board_direction_reverse.png").convert_alpha()
-SKIPPED_ICON = pygame.image.load("assets/Uno Game Assets/Skipped.png").convert_alpha()
+BOARD_DIRECTION = pygame.transform.scale(pygame.image.load("assets/Uno Game Assets/board_direction.png").convert_alpha(), (DESIGN_WIDTH / SCALING_RATIO, DESIGN_HEIGHT / SCALING_RATIO))
+BOARD_DIRECTION_REVERSE = pygame.transform.scale(pygame.image.load("assets/Uno Game Assets/board_direction_reverse.png").convert_alpha(), (DESIGN_WIDTH / SCALING_RATIO, DESIGN_HEIGHT / SCALING_RATIO))
+SKIPPED_ICON = pygame.transform.scale(pygame.image.load("assets/Uno Game Assets/Skipped.png").convert_alpha(), (DESIGN_WIDTH / SCALING_RATIO, DESIGN_HEIGHT / SCALING_RATIO))
 
 BACKGROUND = pygame.transform.scale(pygame.image.load("assets/Uno Game Assets/Table_0.png"), (WIDTH, HEIGHT)).convert_alpha()
 BACKGROUND_ALT = pygame.transform.scale(pygame.image.load("assets/Uno Game Assets/Table_1.png"), (WIDTH, HEIGHT)).convert_alpha()
@@ -113,28 +114,30 @@ card_image_map = {('Blue', '0'): Blue_0, ('Blue', '1'): Blue_1, ('Blue', '2'): B
                   ('Yellow', 'reverse'): Yellow_Reverse, ('Yellow', 'skip'): Yellow_Skip, ("Black", "wild"): Black_Wild, ("Black", "wild draw"): Black_Wild_Draw
                   }
 
+asset_map = {"Uno Card Back": Uno_Back, "Board Direction": BOARD_DIRECTION, "Board Direction Reversed": BOARD_DIRECTION_REVERSE,
+             "Skipped Icon": SKIPPED_ICON, "Background": BACKGROUND, "Background Alt": BACKGROUND_ALT}
+
 wild_image_color_map = {"red": Red_Wild, "green": Green_Wild, "blue": Blue_Wild, "yellow": Yellow_Wild}
 wild_draw_image_color_map = {"red": Red_Wild_Draw, "green": Green_Wild_Draw, "blue": Blue_Wild_Draw, "yellow": Yellow_Wild_Draw}
 
-# Blue_0 = pygame.transform.scale(Blue_0, (100, 100))
-# print(Blue_0.get_size())
-# print(card_image_map[("Blue", "0")].get_size())
-# print(id(card_image_map[("Blue", "0")]), id(Blue_0))
-
-
 
 def asset_scaler():
+    global SCALING_RATIO
+    SCALING_RATIO = DESIGN_WIDTH / pygame.display.get_surface().get_width()
     for key, image in card_image_map.items():
         image = pygame.transform.scale(image, (image.get_width() / SCALING_RATIO, image.get_height() / SCALING_RATIO))
         card_image_map[key] = image
-    remaining_assets = [Uno_Back, BOARD_DIRECTION, BOARD_DIRECTION_REVERSE, SKIPPED_ICON, BACKGROUND, BACKGROUND_ALT]
-    for asset in remaining_assets:
-        print(asset.get_size())
-        pygame.transform.scale(asset, (asset.get_width() / SCALING_RATIO, asset.get_height() / SCALING_RATIO))
-        print(asset.get_size())
+    for key, asset in asset_map.items():
+        asset = pygame.transform.scale(asset, (asset.get_width() / SCALING_RATIO, asset.get_height() / SCALING_RATIO))
+        asset_map[key] = asset
+    for key, asset in wild_image_color_map.items():
+        asset = pygame.transform.scale(asset, (asset.get_width() / SCALING_RATIO, asset.get_height() / SCALING_RATIO))
+        wild_image_color_map[key] = asset
+    for key, asset in wild_draw_image_color_map.items():
+        asset = pygame.transform.scale(asset, (asset.get_width() / SCALING_RATIO, asset.get_height() / SCALING_RATIO))
+        wild_draw_image_color_map[key] = asset
 
 """
-I have no idea why pygame doesn't allow for scaling objects in place. I need to reassign their variable for things to take place.
-To bypass this I'll create a sprite class that will take from pygames surface class and add methods for rescaling them.
-There is also pygame.sprite.Sprite so I should maybe look into that."""
+Instead of using variables I'm calling my assets from dictionaries because it allows me to change their image scales easily. 
+I can't rescale a pygame surface in place so I have to edit the variable itself. Calling from dictionaries make life easier for this."""
 

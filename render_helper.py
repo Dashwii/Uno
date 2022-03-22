@@ -43,7 +43,7 @@ def create_ai_render_names(rotation_list, camera_pov_index):
             ai_name = RenderText(player.name, (WIDTH - 50, 170))
             name_renders.append(ai_name)
         elif position == 2:  # opposite deck render
-            ai_name = RenderText(player.name, (1300, 30))
+            ai_name = RenderText(player.name, (WIDTH // 2 + 400, 30))
             name_renders.append(ai_name)
     return name_renders
 
@@ -105,11 +105,11 @@ def calculate_card_destination_position(rotation_list, player_index, camera_pov_
             if index == player.current_hovered_card_index and allowed_to_raise_card:
                 card.destination_x = int((((screen_mid_w - card.rect.width // 2) + pixel_card_overlap * index) - (
                                         pixel_card_overlap * (player_deck_len - 1)) // 2))
-                card.destination_y = HEIGHT - 250
+                card.destination_y = HEIGHT - (325 // SCALING_RATIO)
             else:
                 card.destination_x = int((((screen_mid_w - card.rect.width // 2) + pixel_card_overlap * index) - (
                             pixel_card_overlap * (player_deck_len - 1)) // 2))
-                card.destination_y = HEIGHT - 175
+                card.destination_y = HEIGHT - (175 // SCALING_RATIO)
 
     # Ai deck renders
     if player_deck_len > max_ai_card_renders:
@@ -169,7 +169,7 @@ def card_pickup_spawn_location(card, player, player_index, camera_pov_index):
 
     if position == -1:
         card.rect.x = (WIDTH // 2 + player_deck_width // 2) + 200
-        card.rect.y = HEIGHT - 175
+        card.rect.y = HEIGHT - (175 / SCALING_RATIO)
     elif position == 0:
         card.rect.x = -50
         card.rect.y = 700

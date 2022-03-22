@@ -44,14 +44,14 @@ class CardRendering:
         for i, player in enumerate(self.rotation_list):
             for card in player.deck:
                 if i == self.camera_pov_index:
-                    self.display.blit(card.image, card.rect)
+                    self.display.blit(card_image_map[(card.card_color.title(), str(card.card_type))], card.rect)
                 else:
-                    self.display.blit(pygame.transform.rotate(Uno_Back, card.rotation), card.rect)
+                    self.display.blit(pygame.transform.rotate(asset_map["Uno Card Back"], card.rotation), card.rect)
         # Render leaving cards
         for i, card in enumerate(self.moving_cards_leaving):
-            self.display.blit(pygame.transform.rotate(card.image, card.rotation), card.rect)
+            self.display.blit(pygame.transform.rotate(card_image_map[(card.card_color.title(), str(card.card_type))], card.rotation), card.rect)
         # Render Unused Deck
-        self.display.blit(pygame.transform.rotate(Uno_Back, 20), (250, 0, CARD_WIDTH, CARD_HEIGHT))
+        self.display.blit(pygame.transform.rotate(asset_map["Uno Card Back"], 20), (250, 0, CARD_WIDTH, CARD_HEIGHT))
 
     def render_ai_names(self):
         for name in self.name_renders:
@@ -64,4 +64,4 @@ class CardRendering:
         elif last_card.card_type == "wild draw":
             self.display.blit(wild_draw_image_color_map[last_card.wild_color], (WIDTH // 2 - last_card.rect.width // 2, HEIGHT // 2 - last_card.rect.height // 2))
         else:
-            self.display.blit(last_card.image, (WIDTH // 2 - last_card.rect.width // 2, HEIGHT // 2 - last_card.rect.height // 2))
+            self.display.blit(card_image_map[(last_card.card_color.title(), str(last_card.card_type))], (WIDTH // 2 - last_card.rect.width // 2, HEIGHT // 2 - last_card.rect.height // 2))

@@ -75,9 +75,9 @@ class Board:
         self.card_rendering.render_cards()
 
         if not self.game_flow.iteration_reversed:
-            self.display.blit(BOARD_DIRECTION, (0, 50))
+            self.display.blit(asset_map["Board Direction"], (0, 50))
         else:
-            self.display.blit(BOARD_DIRECTION_REVERSE, (0, 50))
+            self.display.blit(asset_map["Board Direction Reversed"], (0, 50))
 
         if self.game_flow.skipped:
             render_skipped(self.game_flow.current_player_index, self.camera_pov_index)
