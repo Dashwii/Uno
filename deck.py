@@ -65,4 +65,3 @@ def return_deck():
 def sort(card):
     sort_map = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, "reverse": 10, "skip": 11, "draw": 12, "wild": 13, "wild draw": 14}
     card.sort_num = sort_map[card.card_type]
-    print(card.card_type, card.sort_num)
