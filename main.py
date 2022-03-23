@@ -1,7 +1,5 @@
 from init_stuff import *
 from game_logic import Board
-from render_helper import update_card_positions
-
 
 
 class Game:
