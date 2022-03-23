@@ -234,7 +234,7 @@ class GameFlowState:
                     player.status = None
             elif player.status is None:
                 self.allow_render_raised_card = True
-                player.input(self.current_board_color, self.current_board_type, events)
+                player.input(self.current_board_color, self.current_board_type)
                 if player.decision is not None:
                     card = player.deck.pop(player.current_hovered_card_index)
                     self.selected_card_logic(card)
