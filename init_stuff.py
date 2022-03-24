@@ -1,5 +1,4 @@
 import pygame
-from pygame.locals import RESIZABLE
 
 WIDTH = 1920
 HEIGHT = 1080
@@ -27,7 +26,7 @@ pygame.mixer.init()
 pygame.mixer.music.load("assets/music/music flip theme.mp3")
 pygame.mixer.music.set_volume(0.05)
 
-display = pygame.display.set_mode((WIDTH, HEIGHT), RESIZABLE)
+display = pygame.display.set_mode((WIDTH, HEIGHT))
 
 BOARD_DIRECTION = pygame.transform.scale(pygame.image.load("assets/Uno Game Assets/board_direction.png").convert_alpha(), (DESIGN_WIDTH / SCALING_RATIO, DESIGN_HEIGHT / SCALING_RATIO))
 BOARD_DIRECTION_REVERSE = pygame.transform.scale(pygame.image.load("assets/Uno Game Assets/board_direction_reverse.png").convert_alpha(), (DESIGN_WIDTH / SCALING_RATIO, DESIGN_HEIGHT / SCALING_RATIO))
