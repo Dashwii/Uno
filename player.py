@@ -4,11 +4,13 @@ import pygame
 A player/ai moveset might work better being kept in the class as a statemachine.
 It would cut down on the if elses and hopefully make the code for a player/ai move clearer to follow.
 """
+
+
 class Player:
-    def __init__(self, name, deck):
-        self.controllable = True
+    def __init__(self, name):
+        self.camera_pov = True
         self.name = name
-        self.deck = deck
+        self.deck = []
         self.threat_level = 0
         self.current_hovered_card_index = 0
         self.move_ticker = 0
