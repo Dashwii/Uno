@@ -1,69 +1,20 @@
 import pygame
-import time
 
 """
-Gonna rework the player class to look at it's current situation and send 'commands' to the game class
-on specific moves it needs to do. Like in an interation we'll send a 'pickup' command and the game class
-will respond by appending cards to the players deck when it's ready. This should make edge cases simpler
-to squash as the if chain in the game loop is getting messy. 
+A player/ai moveset might work better being kept in the class as a statemachine.
+It would cut down on the if elses and hopefully make the code for a player/ai move clearer to follow.
 """
-
-
 class Player:
-    def __init__(self, name):
+    def __init__(self, name, deck):
+        self.controllable = True
         self.name = name
-        self.deck = []
+        self.deck = deck
+        self.threat_level = 0
         self.current_hovered_card_index = 0
-        self.command = None
-
-        self.board_color, self.board_type = None, None
-
-        self.stack_threat = None
-
-        self.input_delay = 0
-
-    def get_input(self):
-        time_since_delay = time.time() - self.input_delay
-        if not time_since_delay > 10:
-            return
-        else:
-            self.input_delay = time.time()
-        self.handle_input()
-
-    def handle_input(self):
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_LEFT]:
-            if self.current_hovered_card_index - 1 < 0:
-                self.current_hovered_card_index = len(self.deck) - 1
-            else:
-                self.current_hovered_card_index -= 1
-        elif keys[pygame.K_RIGHT]:
-            if self.current_hovered_card_index + 1 > len(self.deck) - 1:
-                self.current_hovered_card_index = 0
-        elif keys[pygame.K_SPACE]:
-            self.verify_play()
-
-    def verify_play(self):
-        card = self.deck[self.current_hovered_card_index]
-
-        if self.board_color is None:
-            self.command = "PLAY"
-        elif card.card_type == "wild draw":
-            self.command = "PLAY"
-        elif card.card_type == "wild" and not self.stack_threat:
-            self.command = "PLAY"
-        else:
-            if self.stack_threat:
-                if card.card_color == self.board_color and card.card_type == "draw":
-                    self.command = "PLAY"
-            else:
-                if card.card_color == self.board_color or card.card_type == self.board_type:
-                    self.command = "PLAY"
-
-
-    def retrieve_played_card(self):
-        return_card = self.deck.pop(self.current_hovered_card_index)
-        return return_card
+        self.move_ticker = 0
+        self.status = None
+        self.state = None
+        self.decision = None
 
     def input(self, current_board_color, current_board_type):
         if self.decision is not None:
