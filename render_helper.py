@@ -37,13 +37,13 @@ def create_ai_render_names(rotation_list, camera_pov_index):
             continue
         position = camera_pov_mapping(camera_pov_index, i)
         if position == 0:  # left deck render
-            ai_name = RenderText(player.name, (50, 170 // SCALING_RATIO))
+            ai_name = RenderText(player.name, (50, 200 * SCALING_RATIO))
             name_renders.append(ai_name)
         elif position == 1:  # right deck render
-            ai_name = RenderText(player.name, (WIDTH - 50, 170 // SCALING_RATIO))
+            ai_name = RenderText(player.name, (WIDTH - 50, 200 * SCALING_RATIO))
             name_renders.append(ai_name)
         elif position == 2:  # opposite deck render
-            ai_name = RenderText(player.name, (WIDTH // 2 + (400 // SCALING_RATIO), 30))
+            ai_name = RenderText(player.name, (WIDTH // 2 + (400 * SCALING_RATIO), 30))
             name_renders.append(ai_name)
     return name_renders
 
@@ -55,13 +55,13 @@ def update_card_positions(rotation_list, moving_cards_leaving):
 
 
 def update_card_positions_helper(cards_to_move):
-    change_speed = 3
+    change_speed = CARD_UPDATE_SPEED
     for card in cards_to_move:
         if card.rect.x > card.destination_x and not (card.destination_x - change_speed) < card.rect.x < (
                 card.destination_x + change_speed):  # <--- Huge check is to see if the x value is between the two values. It prevents the card from constantly spazzing out due to in-precise float values.
             card.rect.x -= change_speed
         if card.rect.x < card.destination_x and not (card.destination_x - change_speed) < card.rect.x < (
-                card.destination_x + change_speed):  # <-- Why isn't this condition working
+                card.destination_x + change_speed):
             card.rect.x += change_speed
         elif min(card.destination_x - change_speed, card.destination_x + change_speed) < card.rect.x < max(
                 card.destination_x - change_speed,
@@ -105,11 +105,11 @@ def calculate_card_destination_position(rotation_list, player_index, camera_pov_
             if index == player.current_hovered_card_index and allowed_to_raise_card:
                 card.destination_x = int((((screen_mid_w - card.rect.width // 2) + pixel_card_overlap * index) - (
                                         pixel_card_overlap * (player_deck_len - 1)) // 2))
-                card.destination_y = HEIGHT - (325 // SCALING_RATIO)
+                card.destination_y = int(HEIGHT - (325 * SCALING_RATIO))
             else:
                 card.destination_x = int((((screen_mid_w - card.rect.width // 2) + pixel_card_overlap * index) - (
                             pixel_card_overlap * (player_deck_len - 1)) // 2))
-                card.destination_y = HEIGHT - (175 // SCALING_RATIO)
+                card.destination_y = int(HEIGHT - (175 * SCALING_RATIO))
 
     # Ai deck renders
     if player_deck_len > max_ai_card_renders:
@@ -118,14 +118,14 @@ def calculate_card_destination_position(rotation_list, player_index, camera_pov_
     if position == 0:  # left deck rendering
         pixel_card_overlap = percentage(overlap, CARD_WIDTH)
         for index, card in enumerate(player.deck[:max_ai_card_renders]):
-            card.destination_x = -50 // SCALING_RATIO
+            card.destination_x = int(-50 * SCALING_RATIO)
             card.destination_y = int(((screen_mid_h - card.rect.width // 2) + pixel_card_overlap * index) - (
                         pixel_card_overlap * (player_deck_len - 1)) // 2)
     elif position == 1:  # right deck rendering
         overlap = 35 - player_deck_len
         pixel_card_overlap = percentage(overlap, CARD_WIDTH)
         for index, card in enumerate(player.deck[:max_ai_card_renders]):
-            card.destination_x = WIDTH - (150 // SCALING_RATIO)
+            card.destination_x = int(WIDTH - (150 * SCALING_RATIO))
             card.destination_y = int(((screen_mid_h - card.rect.width // 2) - pixel_card_overlap * index) + (
                         pixel_card_overlap * (player_deck_len - 1)) // 2)
     elif position == 2:  # opposite deck rendering
@@ -133,7 +133,7 @@ def calculate_card_destination_position(rotation_list, player_index, camera_pov_
         for index, card in enumerate(player.deck[:max_ai_card_renders]):
             card.destination_x = int(((screen_mid_w - card.rect.width // 2) - pixel_card_overlap * index) + (
                         pixel_card_overlap * (player_deck_len - 1)) // 2)
-            card.destination_y = -50 // SCALING_RATIO
+            card.destination_y = int(-50 * SCALING_RATIO)
 
 
 def get_deck_width(player, position):
@@ -169,19 +169,19 @@ def card_pickup_spawn_location(card, player, player_index, camera_pov_index):
 
     if position == -1:
         card.rect.x = (WIDTH // 2 + player_deck_width // 2) + 200
-        card.rect.y = HEIGHT - (175 / SCALING_RATIO)
+        card.rect.y = HEIGHT - (175 * SCALING_RATIO)
     elif position == 0:
         card.rect.x = -50
-        card.rect.y = 700
+        card.rect.y = 700 * SCALING_RATIO
         card.rect.width = 200
         card.rect.height = 150
     elif position == 1:
         card.rect.x = WIDTH - 150
-        card.rect.y = 100
+        card.rect.y = 100 * SCALING_RATIO
         card.rect.width = 200
         card.rect.height = 150
     elif position == 2:
-        card.rect.x = 700
+        card.rect.x = 700 * SCALING_RATIO
         card.rect.y = -50
 
 

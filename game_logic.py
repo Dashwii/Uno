@@ -20,11 +20,11 @@ class Board:
         self.current_state = "dealing_cards"
         self.all_states = {"dealing_cards": self.deal_cards, "in game": self.game_flow, "game over": self.end_game}
         self.deck = return_deck()
-        self.player = Player("Player", [])
+        self.player = Player("Player")
         self.bots = [AI(AI_NAME_LIST[_], []) for _ in range(3)]
         self.rotation_list = [self.player] + self.bots
         shuffle(self.rotation_list)
-        self.camera_pov_index = get_player_controller_index(self.rotation_list)
+        self.camera_pov_index = get_camera_pov_index(self.rotation_list)
 
         self.state_switched = False
         self.winning_player = None
@@ -47,6 +47,7 @@ class Board:
     def deal_cards(self):
         self.card_dealer.deal_cards()
         if self.card_dealer.end_dealing_state:
+            print(time.time() - self.card_dealer.time_began)
             self.switch_states("in game")
 
     def game_flow(self):
@@ -75,9 +76,9 @@ class Board:
         self.card_rendering.render_cards()
 
         if not self.game_flow.iteration_reversed:
-            self.display.blit(asset_map["Board Direction"], (0, 50))
+            self.display.blit(asset_map["Board Direction"], (0, 50 * SCALING_RATIO))
         else:
-            self.display.blit(asset_map["Board Direction Reversed"], (0, 50))
+            self.display.blit(asset_map["Board Direction Reversed"], (0, 50 * SCALING_RATIO))
 
         if self.game_flow.skipped:
             render_skipped(self.game_flow.current_player_index, self.camera_pov_index)
@@ -393,9 +394,10 @@ class DealingCardState:
         self.dealing_done = False
         self.added_cards = 0
         self.card_rendering = card_rendering
-        self.camera_pov_index = get_player_controller_index(self.rotation_list)
+        self.camera_pov_index = get_camera_pov_index(self.rotation_list)
         self.distributing_done = False
         self.end_dealing_state = False
+        self.time_began = time.time()
 
     def deal_cards(self):
         if len(self.rotation_list[-1].deck) == 7:
@@ -417,7 +419,8 @@ class DealingCardState:
         self.card_rendering.card_pickup_animation(card, self.current_index)
         self.rotation_list[self.current_index].deck.append(card)
         if self.current_index == self.camera_pov_index:
-            self.rotation_list[self.camera_pov_index].sort_cards_visual()
+            #self.rotation_list[self.camera_pov_index].sort_cards_visual()
+            pass
         if self.current_index + 1 > 3:
             self.current_index = 0
         else:
@@ -453,9 +456,9 @@ class EndGame:
         self.quit_text.render()
 
 
-def get_player_controller_index(rotation_list):
-    for i, bot in enumerate(rotation_list):
-        if hasattr(bot, "controllable"):
+def get_camera_pov_index(rotation_list):
+    for i, player in enumerate(rotation_list):
+        if hasattr(player, "camera_pov"):
             return i
 
 

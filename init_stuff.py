@@ -1,19 +1,21 @@
 import pygame
 
-WIDTH = 1280
-HEIGHT = 720
+WIDTH = 1920
+HEIGHT = 1080
 
 DESIGN_WIDTH = 1920
 DESIGN_HEIGHT = 1080
 
 
-SCALING_RATIO = DESIGN_WIDTH / WIDTH
+SCALING_RATIO = WIDTH / DESIGN_WIDTH
 
 FPS = 60
 
-CARD_WIDTH = 150 / SCALING_RATIO
-CARD_HEIGHT = 200 / SCALING_RATIO
-
+CARD_WIDTH = 150 * SCALING_RATIO
+CARD_HEIGHT = 200 * SCALING_RATIO
+CARD_UPDATE_SPEED = 3 * SCALING_RATIO
+print(SCALING_RATIO)
+print(CARD_UPDATE_SPEED)
 
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
@@ -28,9 +30,9 @@ pygame.mixer.music.set_volume(0.05)
 
 display = pygame.display.set_mode((WIDTH, HEIGHT))
 
-BOARD_DIRECTION = pygame.transform.scale(pygame.image.load("assets/Uno Game Assets/board_direction.png").convert_alpha(), (DESIGN_WIDTH / SCALING_RATIO, DESIGN_HEIGHT / SCALING_RATIO))
-BOARD_DIRECTION_REVERSE = pygame.transform.scale(pygame.image.load("assets/Uno Game Assets/board_direction_reverse.png").convert_alpha(), (DESIGN_WIDTH / SCALING_RATIO, DESIGN_HEIGHT / SCALING_RATIO))
-SKIPPED_ICON = pygame.transform.scale(pygame.image.load("assets/Uno Game Assets/Skipped.png").convert_alpha(), (DESIGN_WIDTH / SCALING_RATIO, DESIGN_HEIGHT / SCALING_RATIO))
+BOARD_DIRECTION = pygame.transform.scale(pygame.image.load("assets/Uno Game Assets/board_direction.png").convert_alpha(), (DESIGN_WIDTH * SCALING_RATIO, DESIGN_HEIGHT * SCALING_RATIO))
+BOARD_DIRECTION_REVERSE = pygame.transform.scale(pygame.image.load("assets/Uno Game Assets/board_direction_reverse.png").convert_alpha(), (DESIGN_WIDTH * SCALING_RATIO, DESIGN_HEIGHT * SCALING_RATIO))
+SKIPPED_ICON = pygame.transform.scale(pygame.image.load("assets/Uno Game Assets/Skipped.png").convert_alpha(), (DESIGN_WIDTH * SCALING_RATIO, DESIGN_HEIGHT * SCALING_RATIO))
 
 BACKGROUND = pygame.transform.scale(pygame.image.load("assets/Uno Game Assets/Table_0.png"), (WIDTH, HEIGHT)).convert_alpha()
 BACKGROUND_ALT = pygame.transform.scale(pygame.image.load("assets/Uno Game Assets/Table_1.png"), (WIDTH, HEIGHT)).convert_alpha()
