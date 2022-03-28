@@ -420,8 +420,7 @@ class DealingCardState:
         self.card_rendering.card_pickup_animation(card, self.current_index)
         self.rotation_list[self.current_index].deck.append(card)
         if self.current_index == self.camera_pov_index:
-            #self.rotation_list[self.camera_pov_index].sort_cards_visual()
-            pass
+            self.rotation_list[self.camera_pov_index].sort_cards_visual()
         if self.current_index + 1 > 3:
             self.current_index = 0
         else:
