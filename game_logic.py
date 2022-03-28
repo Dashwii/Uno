@@ -36,8 +36,8 @@ class Board:
 
         self.reset = False
 
-        pygame.mixer.music.play()
-        pygame.event.wait()
+        #pygame.mixer.music.play()
+        #pygame.event.wait()
 
     def play(self):
         self.all_states[self.current_state]()
@@ -198,7 +198,7 @@ class GameFlowState:
             pygame.display.update()
 
 
-    def play_player_move(self, events):
+    def play_player_move(self):
         if self.skipped:
             if self.round_delay_switch():
                 self.iterate_rotation = True
