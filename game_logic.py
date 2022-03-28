@@ -161,7 +161,7 @@ class GameFlowState:
 
     def play_move(self):
         if self.camera_pov_index == self.current_player_index:
-            self.play_player_move(self.board.game.events)
+            self.play_player_move()
         else:
             self.play_ai_move()
 
@@ -213,6 +213,7 @@ class GameFlowState:
                     player.status = "pickup"
                 else:
                     self.allow_render_raised_card = True
+                    player.current_hovered_card_index = player.deck.index(response)
                     player.input(self.current_board_color, self.current_board_type)
                     if player.decision is not None:
                         card = player.deck.pop(player.current_hovered_card_index)
@@ -320,13 +321,13 @@ class GameFlowState:
         if self.current_stack:
             for card in player.deck:
                 if card.card_type == "wild draw" or card.card_type == "draw":
-                    return True
+                    return card
             else:
                 return False
         else:
             for card in player.deck:
                 if card.card_color == self.current_board_color or card.card_type in (self.current_board_type, "wild", "wild draw"):
-                    return True
+                    return card
             else:
                 return False
 
