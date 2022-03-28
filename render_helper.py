@@ -20,14 +20,14 @@ What I need:
 def render_skipped(player_index, camera_pov_index):
     display = pygame.display.get_surface()
     position = camera_pov_mapping(camera_pov_index, player_index)
-    if position == -1:
+    if position == -1:  # Camera Pov
         display.blit(SKIPPED_ICON, (WIDTH // 2 - SKIPPED_ICON.get_width() // 2, 800 - SKIPPED_ICON.get_height() // 2))
-    elif position == 0:
-        display.blit(SKIPPED_ICON, (100 - SKIPPED_ICON.get_width() // 2, HEIGHT // 2 - SKIPPED_ICON.get_height() // 2))
-    elif position == 1:
-        display.blit(SKIPPED_ICON, (WIDTH - 100 - SKIPPED_ICON.get_width() // 2, HEIGHT // 2 - SKIPPED_ICON.get_height() // 2))
-    elif position == 2:
-        display.blit(SKIPPED_ICON, (WIDTH // 2 - SKIPPED_ICON.get_width() // 2, 150 - SKIPPED_ICON.get_height() // 2))
+    elif position == 0:  # Left Deck
+        display.blit(SKIPPED_ICON, (250 - SKIPPED_ICON.get_width() // 2, HEIGHT // 2 - SKIPPED_ICON.get_height() // 2))
+    elif position == 1:  # Right Deck
+        display.blit(SKIPPED_ICON, ((WIDTH - 250) - SKIPPED_ICON.get_width() // 2, HEIGHT // 2 - SKIPPED_ICON.get_height() // 2))
+    elif position == 2:  # Opposite Deck
+        display.blit(SKIPPED_ICON, (WIDTH // 2 - SKIPPED_ICON.get_width() // 2, 250 - SKIPPED_ICON.get_height() // 2))
 
 
 def create_ai_render_names(rotation_list, camera_pov_index):

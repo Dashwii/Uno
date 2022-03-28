@@ -32,7 +32,7 @@ display = pygame.display.set_mode((WIDTH, HEIGHT))
 
 BOARD_DIRECTION = pygame.transform.scale(pygame.image.load("assets/Uno Game Assets/board_direction.png").convert_alpha(), (DESIGN_WIDTH * SCALING_RATIO, DESIGN_HEIGHT * SCALING_RATIO))
 BOARD_DIRECTION_REVERSE = pygame.transform.scale(pygame.image.load("assets/Uno Game Assets/board_direction_reverse.png").convert_alpha(), (DESIGN_WIDTH * SCALING_RATIO, DESIGN_HEIGHT * SCALING_RATIO))
-SKIPPED_ICON = pygame.transform.scale(pygame.image.load("assets/Uno Game Assets/Skipped.png").convert_alpha(), (DESIGN_WIDTH * SCALING_RATIO, DESIGN_HEIGHT * SCALING_RATIO))
+SKIPPED_ICON = pygame.transform.scale(pygame.image.load("assets/Uno Game Assets/Skipped.png").convert_alpha(), (200 * SCALING_RATIO, 200 * SCALING_RATIO))
 
 BACKGROUND = pygame.transform.scale(pygame.image.load("assets/Uno Game Assets/Table_0.png"), (WIDTH, HEIGHT)).convert_alpha()
 BACKGROUND_ALT = pygame.transform.scale(pygame.image.load("assets/Uno Game Assets/Table_1.png"), (WIDTH, HEIGHT)).convert_alpha()
