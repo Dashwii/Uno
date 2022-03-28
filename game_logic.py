@@ -232,8 +232,10 @@ class GameFlowState:
             if player.status == "pickup":
                 self.pickup_cards()
                 player.sort_cards_visual()
-                if self.check_any_playable_cards(player):
+                playable_card = self.check_any_playable_cards(player)
+                if playable_card:
                     player.status = None
+                    player.current_hovered_card_index = player.deck.index(playable_card)
             elif player.status is None:
                 self.allow_render_raised_card = True
                 player.input(self.current_board_color, self.current_board_type)
@@ -404,9 +406,6 @@ class DealingCardState:
         if len(self.rotation_list[-1].deck) == 7:
             self.distributing_done = True
         if self.card_rendering.check_moving_cards_done() and self.distributing_done:
-            #self.rotation_list[0].deck = self.rotation_list[0].deck[:2]
-            # self.rotation_list[0].deck[0].card_color, self.rotation_list[0].deck[0].card_type = "black", "wild draw"
-            # self.rotation_list[0].deck[0].image = card_image_map[(self.rotation_list[0].deck[0].card_color.title(), str(self.rotation_list[0].deck[0].card_type))]
             self.end_dealing_state = True
         if self.timer is None:
             self.timer = time.time()
