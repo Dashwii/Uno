@@ -51,7 +51,7 @@ class CardRendering:
         for i, card in enumerate(self.moving_cards_leaving):
             self.display.blit(pygame.transform.rotate(card_image_map[(card.card_color.title(), str(card.card_type))], card.rotation), card.rect)
         # Render Unused Deck
-        self.display.blit(pygame.transform.rotate(asset_map["Uno Card Back"], 20), (250 * SCALING_RATIO, 0, CARD_WIDTH, CARD_HEIGHT))
+        self.display.blit(pygame.transform.rotate(asset_map["Uno Card Back"], 20), (UNUSED_DECK_POSITION[0], UNUSED_DECK_POSITION[1], CARD_WIDTH, CARD_HEIGHT))
 
     def render_ai_names(self):
         for name in self.name_renders:
