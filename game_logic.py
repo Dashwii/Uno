@@ -1,4 +1,4 @@
-from player import Player
+from player import *
 from ai import AI
 from deck import return_deck
 from random import shuffle
@@ -10,6 +10,7 @@ AI_NAME_LIST = list(reversed(["Bot", "Bot2", "Bot3"]))
 
 update_card_positions_event = pygame.USEREVENT + 1
 pygame.time.set_timer(update_card_positions_event, 1)
+
 
 
 class Board:
@@ -36,8 +37,8 @@ class Board:
 
         self.reset = False
 
-        #pygame.mixer.music.play()
-        #pygame.event.wait()
+        pygame.mixer.music.play()
+        pygame.event.wait()
 
     def play(self):
         self.all_states[self.current_state]()
@@ -46,8 +47,7 @@ class Board:
 
     def deal_cards(self):
         self.card_dealer.deal_cards()
-        if self.card_dealer.end_dealing_state:
-            print(time.time() - self.card_dealer.time_began)
+        if self.card_dealer.end_dealing_state and self.card_rendering.check_moving_cards_done():
             self.switch_states("in game")
 
     def game_flow(self):
@@ -126,6 +126,8 @@ class GameFlowState:
             self.player_rotation()
             self.iterate_rotation = False
             self.update_rotation_interface_color("green")
+            if self.current_player_index == self.camera_pov_index:
+                self.rotation_list[self.current_player_index].auto_highlight(self.current_board_color, self.current_board_type)
             if self.next_round_skip:
                 self.skipped = True
                 self.next_round_skip = False
@@ -140,10 +142,10 @@ class GameFlowState:
 
     def update_rotation_interface_color(self, color, game_start=False):
         if game_start:
-            if not hasattr(self.rotation_list[self.current_player_index], "controllable"):
+            if not hasattr(self.rotation_list[self.current_player_index], "camera_pov"):
                 self.card_rendering.name_renders[self.current_player_index].update_color(color)
             return
-        if not hasattr(self.rotation_list[self.current_player_index], "controllable"):
+        if not hasattr(self.rotation_list[self.current_player_index], "camera_pov"):
             if self.current_player_index + 1 > 2:  # Account for player having a turn, prevents IndexError
                 self.card_rendering.name_renders[self.current_player_index - 1].update_color(color)
             else:
@@ -168,7 +170,7 @@ class GameFlowState:
     def player_choosing_color(self):
         current_selected_color_index = 0
         colors_images = {0: Red_0, 1: Green_0, 2: Blue_0, 3: Yellow_0}
-        colors_positions = {0: WIDTH // 2 - 400, 1: WIDTH // 2 - 200, 2: (WIDTH // 2 + 200) - CARD_WIDTH, 3: (WIDTH // 2 + 400) - CARD_WIDTH}
+        colors_positions = {0: WIDTH // 2 - (400 * SCALING_RATIO), 1: WIDTH // 2 - (200 * SCALING_RATIO), 2: (WIDTH // 2 + (200 * SCALING_RATIO)) - CARD_WIDTH, 3: (WIDTH // 2 + (400 * SCALING_RATIO)) - CARD_WIDTH}
         colors = ["red", "green", "blue", "yellow"]
         display = pygame.display.get_surface()
         while True:
@@ -199,54 +201,81 @@ class GameFlowState:
 
 
     def play_player_move(self):
+        """
+        PLAYER STATES:
+        1. None (Choosing any card)
+        2. NO PLAYABLE CARDS
+        3. STACK PICKUP
+        4. Making Play/Keep decision
+        5. Waiting
+        """
+        player = self.rotation_list[self.current_player_index]
+
+
+        # Some initial checks before the player is allowed to give input
         if self.skipped:
             if self.round_delay_switch():
                 self.iterate_rotation = True
             return
-        player = self.rotation_list[self.current_player_index]
+        # Two checks for either STACK PICKUP or NO PLAYABLE CARDS. If STACK PICKUP, the player has to pickup the amount of cards in the stack, then the turn moves on.
+        # If NO PLAYABLE CARDS, the player will continue to pickup cards until they pickup a playable card. They will then be given the choice to either play or keep that card.
+        if self.current_stack > 0 and player.status is None:
+            player.stack_threat = True
+            any_playable_cards = self.check_any_playable_cards(player)
+            if not any_playable_cards:
+                player.status = "STACK PICKUP"
+        elif not self.check_any_playable_cards(player) and player.status is None:
+            player.status = "NO PLAYABLE CARDS"
 
-        if self.current_stack > 0 and player.status != "waiting":
-            player.threat_level = 1
-            if not player.status == "pickup":
-                response = self.check_any_playable_cards(player)
-                if not response:
-                    player.status = "pickup"
+
+        if player.status is None:
+            self.allow_render_raised_card = True
+
+            # Allow input, will do more work if player.decision has a card
+            player.input(self.board.game.events, self.current_board_color, self.current_board_type)
+            # Future code to allow pressing the unused uno cards to pickup 1 card.
+            pickup_request = pickup_card(self.board.game.events)
+            if pickup_request:
+                self.allow_render_raised_card = False
+                card = self.pickup_cards()
+                player.last_added_card = card
+                if self.check_card_is_playable(card):
+                    player.status = "PLAY/KEEP DECISION"
                 else:
-                    self.allow_render_raised_card = True
-                    player.current_hovered_card_index = player.deck.index(response)
-                    player.input(self.current_board_color, self.current_board_type)
-                    if player.decision is not None:
-                        card = player.deck.pop(player.current_hovered_card_index)
-                        self.selected_card_logic(card)
-                        player.status = "waiting"
-                        self.allow_render_raised_card = False
-            if player.status != "waiting":
-                self.pickup_cards()
-                player.sort_cards_visual()
-            if self.current_stack == 0:
-                player.status = "waiting"
-        else:
-            response = self.check_any_playable_cards(player)
-            if not response and player.status != "waiting":
-                player.status = "pickup"
-            if player.status == "pickup":
-                self.pickup_cards()
-                player.sort_cards_visual()
-                playable_card = self.check_any_playable_cards(player)
-                if playable_card:
-                    player.status = None
-                    player.current_hovered_card_index = player.deck.index(playable_card)
-            elif player.status is None:
-                self.allow_render_raised_card = True
-                player.input(self.current_board_color, self.current_board_type)
-                if player.decision is not None:
-                    card = player.deck.pop(player.current_hovered_card_index)
-                    self.selected_card_logic(card)
-                    player.status = "waiting"
-                    self.allow_render_raised_card = False
-        if player.status == "waiting":
+                    player.status = "WAITING"
+
+            if player.decision is not None:
+                player.status = "WAITING"
+                card = player.deck.pop(player.current_hovered_card_index)
+                self.allow_render_raised_card = False
+                self.selected_card_logic(card)
+
+        elif player.status in ("NO PLAYABLE CARDS", "STACK PICKUP"):
+            card = self.pickup_cards()
+            player.sort_cards_visual()
+            if card:  # In case a card wasn't added on iteration due to animation delay.
+                player.last_added_card = card
+            if player.status == "STACK PICKUP" and self.current_stack == 0:
+                player.status = "WAITING"
+            elif player.status == "NO PLAYABLE CARDS":
+                any_playable_cards = self.check_any_playable_cards(player)
+                if any_playable_cards:
+                    player.status = "PLAY/KEEP DECISION"
+
+        elif player.status == "PLAY/KEEP DECISION":
+            decision = update_choice_buttons(self.board.game.events)
+            if decision == "PLAY":
+                card = player.deck.pop(player.deck.index(player.last_added_card))
+                self.selected_card_logic(card)
+                player.last_added_card = None
+                player.status = "WAITING"
+            elif decision == "KEEP":
+                player.status = "WAITING"
+
+        elif player.status == "WAITING":
             if self.card_rendering.check_moving_cards_leaving_done():
                 if self.round_delay_switch():
+                    print(player.deck)
                     self.iterate_rotation = True
 
     def play_ai_move(self):
@@ -315,7 +344,7 @@ class GameFlowState:
         elif special_type == "skip":
             self.next_round_skip = True
         elif special_type == "reverse":
-          self.iteration_reversed = True
+          self.iteration_reversed = not self.iteration_reversed
 
     def check_any_playable_cards(self, player):
         if self.current_board_color is None:
@@ -330,6 +359,20 @@ class GameFlowState:
             for card in player.deck:
                 if card.card_color == self.current_board_color or card.card_type in (self.current_board_type, "wild", "wild draw"):
                     return card
+            else:
+                return False
+
+    def check_card_is_playable(self, card):
+        if self.current_board_color is None:
+            return True
+        if self.current_stack:
+            if card.card_type == "wild draw" or card.card_type == "draw":
+                return True
+            else:
+                return False
+        else:
+            if card.card_color == self.current_board_color or card.card_type in (self.current_board_type, "wild", "wild draw"):
+                return True
             else:
                 return False
 
@@ -363,7 +406,7 @@ class GameFlowState:
             Add variable delay to give cards time to travel
         """
         if self.card_pickup_delay is None:
-            self.card_pickup_delay = time.time()
+            self.card_pickup_delay = time.time() - 1000
         if time.time() - self.card_pickup_delay > 1:
             self.card_pickup_delay = time.time()
             self.deck_rebuild_checker()
@@ -385,7 +428,10 @@ class GameFlowState:
     def reset_players_status(self):
         self.rotation_list[self.current_player_index].status = None
         self.rotation_list[self.current_player_index].decision = None
-        self.rotation_list[self.current_player_index].threat_level = 0
+        if self.current_player_index == self.camera_pov_index:
+            self.rotation_list[self.current_player_index].stack_threat = False
+        else:
+            self.rotation_list[self.current_player_index].threat_level = 0
 
 
 class DealingCardState:
@@ -407,10 +453,11 @@ class DealingCardState:
             self.distributing_done = True
         if self.card_rendering.check_moving_cards_done() and self.distributing_done:
             self.end_dealing_state = True
+            return
         if self.timer is None:
             self.timer = time.time()
             self.distribute()
-        elif time.time() - self.timer > .075 and self.card_rendering.check_moving_cards_done():  # Distribute cards if timer is ready and every player does not have 7 cards already.
+        elif time.time() - self.timer > .01 and self.card_rendering.check_moving_cards_done():  # Distribute cards if timer is ready and every player does not have 7 cards already.
             self.timer = time.time()
             self.distribute()
 
