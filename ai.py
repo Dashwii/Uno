@@ -161,7 +161,6 @@ class AIFuncts:
         If no available card launch color change.
         """
         card_ratings = []
-        color_stats = count_colored_amount(self.deck)
         for card in self.deck:
             # Special card ratings (Draw, Skip, Reverse)  # -1 Used to be "None" I changed it for some reason
             if (card.card_color == self.game_card_color or self.game_card_color is None) and card.card_type not in range(0, 10):
@@ -181,10 +180,10 @@ class AIFuncts:
         if card_ratings:
             card = sort_highest_rated(card_ratings)
             if card.card_color == "black":
-                new_color = color_change(color_stats, self.game_card_color)
+                highest_color_amount = count_colored_amount(self.deck)
+                new_color = color_change(highest_color_amount, self.game_card_color)
                 card.wild_color = new_color
             return card
-        print(card_ratings, self.deck)
         if not card_ratings:
             return None
 
@@ -245,25 +244,6 @@ class AIFuncts:
                 return card
         else:
             return self.no_priority()
-
-    def color_change(self):
-        # lowest_number_color = deck_color_stats[2]  # Might be used in future
-        highest_number_color = self.count_each_card_colors()[1]
-        # amount_each_color = deck_color_stats[0]  # Might be used in future
-        if highest_number_color == self.game_card_color:  # This will be used in case the draw 4 is used to target another player. But AI still wants same color. OR AI is using draw to prevent taking a stack.
-            new_color = self.game_card_color
-            return new_color
-        else:
-            new_color = highest_number_color
-            return new_color
-
-    def count_each_card_colors(self):
-        color_amounts = {"red": 0, "green": 0, "blue": 0, "yellow": 0}  # Don't count black cards
-        for card in self.deck:
-            color_amounts[card.card_color] += 1
-        highest_color_amount = max(color_amounts, key=color_amounts.get)
-        lowest_color_amount = min(color_amounts, key=color_amounts.get)
-        return color_amounts, highest_color_amount, lowest_color_amount
 
     @staticmethod
     def sort_highest_ranked(card_ratings):
@@ -413,10 +393,7 @@ def skip_priority(deck, game_color, game_number):
         return no_priority(deck, game_color, game_number)
 
 
-def color_change(deck_color_stats, current_color):
-    #lowest_number_color = deck_color_stats[2]  # Might be used in future
-    highest_number_color = deck_color_stats[1]
-    #amount_each_color = deck_color_stats[0]  # Might be used in future
+def color_change(highest_number_color, current_color):
     if highest_number_color == current_color:  # This will be used in case the draw 4 is used to target another player. But AI still wants same color. OR AI is using draw to prevent taking a stack.
         new_color = current_color
         return new_color 
@@ -431,25 +408,9 @@ def sort_highest_rated(card_ratings):
     
 
 def count_colored_amount(card_deck):
-    color_amounts = {"red": 0, "green": 0, "blue": 0, "yellow": 0, "black": 0}
+    color_amounts = {"red": 0, "green": 0, "blue": 0, "yellow": 0}
     for card in card_deck:
-        color_amounts[card.card_color] += 1
+        if card.card_color != "black":
+            color_amounts[card.card_color] += 1
     highest_color_amount = max(color_amounts, key=color_amounts.get)
-    lowest_color_amount = min(color_amounts, key=color_amounts.get)
-    return color_amounts, highest_color_amount, lowest_color_amount 
-
-# def determine_playable_card(self, current_board_color, current_board_type):
-#         if self.threat_level:
-#             self.chosen_card = draw_card_case(self.deck, current_board_color, self.threat_level)
-#         elif self.reverse:
-#             self.chosen_card = reverse_priority(self.deck, current_board_color, current_board_type)
-#         elif self.skip:
-#             self.chosen_card = skip_priority(self.deck, current_board_color, current_board_type)
-#         else:
-#             self.chosen_card = no_priority(self.deck, current_board_color, current_board_type)
-#         if self.chosen_card is None:  # If card is None then that means no card was available for play.
-#             self.status = "pickup"
-#             return
-#         else:
-#             self.status = "chosen"
-#         self.chosen_card_index = self.deck.index(self.chosen_card)
+    return highest_color_amount
