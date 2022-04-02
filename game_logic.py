@@ -22,9 +22,11 @@ class Board:
         self.all_states = {"dealing_cards": self.deal_cards, "in game": self.game_flow, "game over": self.end_game}
         self.deck = return_deck()
         self.player = Player("Player")
-        self.bots = [AI(AI_NAME_LIST[_], []) for _ in range(3)]
+        self.bots = [AI(AI_NAME_LIST[_], [], self) for _ in range(3)]
         self.rotation_list = [self.player] + self.bots
         shuffle(self.rotation_list)
+        for i, player in enumerate(self.rotation_list):
+            player.index = i
         self.camera_pov_index = get_camera_pov_index(self.rotation_list)
 
         self.state_switched = False
@@ -72,9 +74,6 @@ class Board:
             if event.type == update_card_positions_event:
                 update_card_positions(self.game_flow.rotation_list, self.card_rendering.moving_cards_leaving)
 
-        self.card_rendering.render_ai_names()
-        self.card_rendering.render_cards()
-
         if not self.game_flow.iteration_reversed:
             self.display.blit(asset_map["Board Direction"], (0, 50 * SCALING_RATIO))
         else:
@@ -82,6 +81,9 @@ class Board:
 
         if self.game_flow.skipped:
             render_skipped(self.game_flow.current_player_index, self.camera_pov_index)
+
+        self.card_rendering.render_ai_names()
+        self.card_rendering.render_cards()
 
     def switch_states(self, switch):
         self.current_state = switch
@@ -118,8 +120,11 @@ class GameFlowState:
     def game_loop(self):
         self.play_move()
         self.render_used_deck()
+        self.iteration()
 
-        if self.iterate_rotation:  # Player rotation must not iterate until ready (Player made their choice of card, animations being completed, simulating wait time for AI's)
+    def iteration(self):
+        # This will not iterate until iteration_rotation is true. It'll be true when the current player is done with their turn and cards moving on the board are in place.
+        if self.iterate_rotation:
             self.check_win()
             self.update_rotation_interface_color("white")
             self.reset_players_status()
@@ -199,7 +204,6 @@ class GameFlowState:
                     display.blit(colors_images[i], (colors_positions[i], HEIGHT // 2 - CARD_HEIGHT // 2))
             pygame.display.update()
 
-
     def play_player_move(self):
         """
         PLAYER STATES:
@@ -275,52 +279,45 @@ class GameFlowState:
         elif player.status == "WAITING":
             if self.card_rendering.check_moving_cards_leaving_done():
                 if self.round_delay_switch():
-                    print(player.deck)
                     self.iterate_rotation = True
 
     def play_ai_move(self):
+        player_ai = self.rotation_list[self.current_player_index]
         if self.skipped:
             if self.round_delay_switch():
                 self.iterate_rotation = True
             return
-        player_ai = self.rotation_list[self.current_player_index]
 
-        if self.current_stack > 0 and player_ai.status != "waiting":
-            player_ai.threat_level = 1
-            if not player_ai.status == "pickup":
-                response = self.check_any_playable_cards(player_ai)
-                if not response:
-                    player_ai.status = "pickup"
-                else:
-                    # If playable draw card or wild draw. Play it, then move to next turn.
-                    player_ai.play(self.current_board_color, self.current_board_type)
-                    card = player_ai.deck.pop(player_ai.chosen_card_index)
-                    self.selected_card_logic(card)
-                    player_ai.status = "waiting"
-            # Pick up cards until stack is done and then move to next turn.
-            if player_ai.status != "waiting":
-                self.pickup_cards()
-            if self.current_stack == 0:
-                player_ai.status = "waiting"
-        else:
-            response = self.check_any_playable_cards(player_ai)
-            if not response and player_ai.status != "waiting":
-                player_ai.status = "pickup"
-            if player_ai.status == "pickup":
-                self.pickup_cards()
-                if self.check_any_playable_cards(player_ai):
-                    player_ai.status = None
-            elif player_ai.status is None:
-                player_ai.play(self.current_board_color, self.current_board_type)
+        if self.current_stack > 0 and player_ai.status is None:
+            player_ai.stack_threat = True
+            any_playable_cards = self.check_any_playable_cards(player_ai)
+            if not any_playable_cards:
+                player_ai.status = "STACK PICKUP"
+        elif not self.check_any_playable_cards(player_ai) and player_ai.status is None:
+            player_ai.status = "NO PLAYABLE CARDS"
+
+        if player_ai.status is None:
+            player_ai.play(self.current_board_color, self.current_board_type)
+            if player_ai.decision is not None:
+                player_ai.status = "WAITING"
                 card = player_ai.deck.pop(player_ai.chosen_card_index)
                 self.selected_card_logic(card)
-                player_ai.status = "waiting"
 
-        if player_ai.status == "waiting":
+        elif player_ai.status in ("NO PLAYABLE CARDS", "STACK PICKUP"):
+            card = self.pickup_cards()
+            if card:  # In case a card wasn't added on iteration due to animation delay.
+                player_ai.last_added_card = card
+            if player_ai.status == "STACK PICKUP" and self.current_stack == 0:
+                player_ai.status = "WAITING"
+            elif player_ai.status == "NO PLAYABLE CARDS":
+                any_playable_cards = self.check_any_playable_cards(player_ai)
+                if any_playable_cards:
+                    player_ai.status = None
+
+        elif player_ai.status == "WAITING":
             if self.card_rendering.check_moving_cards_leaving_done():
                 if self.round_delay_switch():
                     self.iterate_rotation = True
-        return
 
     def selected_card_logic(self, card):
         if card.card_color in ("red", "green", "blue", "yellow"):
@@ -344,7 +341,7 @@ class GameFlowState:
         elif special_type == "skip":
             self.next_round_skip = True
         elif special_type == "reverse":
-          self.iteration_reversed = not self.iteration_reversed
+            self.iteration_reversed = not self.iteration_reversed
 
     def check_any_playable_cards(self, player):
         if self.current_board_color is None:
@@ -431,7 +428,7 @@ class GameFlowState:
         if self.current_player_index == self.camera_pov_index:
             self.rotation_list[self.current_player_index].stack_threat = False
         else:
-            self.rotation_list[self.current_player_index].threat_level = 0
+            self.rotation_list[self.current_player_index].stack_threat = 0
 
 
 class DealingCardState:
@@ -449,7 +446,7 @@ class DealingCardState:
         self.time_began = time.time()
 
     def deal_cards(self):
-        if len(self.rotation_list[-1].deck) == 7:
+        if len(self.rotation_list[-1].deck) == 20:
             self.distributing_done = True
         if self.card_rendering.check_moving_cards_done() and self.distributing_done:
             self.end_dealing_state = True
@@ -457,7 +454,7 @@ class DealingCardState:
         if self.timer is None:
             self.timer = time.time()
             self.distribute()
-        elif time.time() - self.timer > .01 and self.card_rendering.check_moving_cards_done():  # Distribute cards if timer is ready and every player does not have 7 cards already.
+        elif time.time() - self.timer > .01 and self.card_rendering.check_moving_cards_done() and not self.distributing_done:  # Distribute cards if timer is ready and every player does not have 7 cards already.
             self.timer = time.time()
             self.distribute()
 
@@ -506,13 +503,3 @@ def get_camera_pov_index(rotation_list):
     for i, player in enumerate(rotation_list):
         if hasattr(player, "camera_pov"):
             return i
-
-
-"""
-Implement:
-Jump in: If someone plays a card and you have the exact same card. You can place that card down. (Rotation resumes normally)
-Memory: Bots will stay in a state even if requirements are not met. They can switch states if needed though.
-Prevent Win: Bots will try to prevent a player from winning. If someone on the board has only 2 cards. The chances
-of the AI playing draw cards skyrocket unless they have a priority that's more important. (Like determining they will win first so saving their draw cards is useful instead).
-The chances of using cards like skip and reverse if the player that's about to win is after them also raise as well.
-"""

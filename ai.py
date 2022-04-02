@@ -41,26 +41,28 @@ If the same color is advantageous for the AI. Determine who is closer to winning
 
 
 class AI:
-    def __init__(self, name, deck):
+    def __init__(self, name, deck, board):
+        self.board = board
         self.name = name 
         self.deck = deck
         self.hatred = None  # < -- Dictionary of hate for players
-        self.threat_level = 0
+        self.stack_threat = False
         self.previous_deck_length = len(self.deck)
 
         self.chosen_card_index = None
         self.decision = None
+        self.last_added_card = None
 
         self.status = None
 
+        self.index = False
         self.ai_functs = AIFuncts(self)
-    
+
     def play(self, current_board_color, current_board_type):
         """
             The status is a new flag check to determine whether an AI has already chosen a card.
             Will allow for delaying in iterating turns without the AI freaking out.
         """
-        self.manage_draw_card_flag()  # <--- Determine if new cards have been added to the deck. AI Functs will then begin to check if a card good for the AI's state can be used.
         self.get_playable_card(current_board_color, current_board_type)
 
     def get_playable_card(self, current_board_color, current_board_type):
@@ -85,7 +87,7 @@ class AI:
     def check_any_playable_cards(self, current_board_color, current_board_type):
         if current_board_color is None:
             return True
-        if self.threat_level:
+        if self.stack_threat:
             for card in self.deck:
                 if card.card_type == "wild draw" or card.card_type == "draw":
                     return True
@@ -110,10 +112,11 @@ class AIFuncts:
 
     def __init__(self, ai):
         self.ai = ai
+        self.board = self.ai.board
         self.deck = self.ai.deck
-        self.threat_level = self.ai.threat_level
+        self.stack_threat = self.ai.stack_threat
         self.hatred = None
-        self.prevent_win = None  # <-- Player name to target
+        self.prevent_win = False
         self.no_draw_cards = False
         self.skip = False
         self.reverse = False
@@ -123,23 +126,51 @@ class AIFuncts:
         self.game_card_color = None
         self.game_card_type = None
 
-        self.state = "?"  # <-- Various states the AI can be focusing on. Such as trying to prevent a win.
-                          # Or reversing the board in order to get revenge on a player.
-
     def update_state(self, game_card_color, game_card_type):
         self.game_card_color = game_card_color
         self.game_card_type = game_card_type
         self.deck = self.ai.deck
-        self.threat_level = self.ai.threat_level
+        self.stack_threat = self.ai.stack_threat
+
+        # Prevent win
+        if self.ai.index + 1 > len(self.board.rotation_list) - 1:
+            player_after = 0
+        else:
+            player_after = self.ai.index + 1
+        if self.ai.index - 1 < 0:
+            player_before = len(self.board.rotation_list) - 1
+        else:
+            player_before = self.ai.index - 1
+
+        if len(self.board.rotation_list[player_after].deck) < 3 and not self.board.game_flow.iteration_reversed:
+            self.prevent_win = True
+        elif len(self.board.rotation_list[player_before].deck) < 3 and self.board.game_flow.iteration_reversed:
+            self.prevent_win = True
+        else:
+            self.prevent_win = False
+
+        if len(self.board.rotation_list[player_after].deck) < 5 and not self.board.game_flow.iteration_reversed:
+            self.skip = True
+        elif len(self.board.rotation_list[player_before].deck) < 5 and self.board.game_flow.iteration_reversed:
+            self.skip = True
+        else:
+            self.skip = False
+
+        if len(self.board.rotation_list[player_after].deck) < 5 and not self.board.game_flow.iteration_reversed:
+            self.reverse = True
+        elif len(self.board.rotation_list[player_before].deck) < 5 and self.board.game_flow.iteration_reversed:
+            self.reverse = True
+        else:
+            self.reverse = False
 
     def decision_path(self):
         """
         Main decision path for AIFuncts. This method will decide which method should be used for retrieving the best card for the current move and states of the AI.
         """
         chosen_card = None
-        if self.threat_level:
+        if self.stack_threat or self.prevent_win:
             chosen_card = self.draw_card_case()
-            if chosen_card is None:
+            if chosen_card is None and self.stack_threat:
                 return "pickup"
         elif self.reverse:
             chosen_card = self.reverse_priority()
@@ -203,13 +234,13 @@ class AIFuncts:
             Launch base case if no card available."""
         card_ratings = []
         color_stats = count_colored_amount(self.deck)
-        if self.ai.threat_level == 1:
+        if self.ai.stack_threat == 1:
             for card in self.deck:
                 if card.card_type == "draw":
                     card_ratings.append((card, 10))
                 elif card.card_color == "black" and card.card_type == "wild draw":
                     card_ratings.append((card, 5))
-        elif self.ai.threat_level == 2:
+        elif self.ai.stack_threat == 2:
             for card in self.deck:
                 if card.card_color == self.game_card_color and card.card_type == "draw":
                     card_ratings.append((card, 5))
