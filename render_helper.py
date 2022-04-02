@@ -92,7 +92,6 @@ def calculate_card_destination_position(rotation_list, player_index, camera_pov_
         - + (pixel_card_overlap * (deck_len - 1)) // 2: We then add pixel_card_overlap * (deck_len - 1) which will prevent a deck of
             only 1 card from having a negative offset. We then divide this by 2 also. Which tbh I don't know what that does, but it keeps it aligned lmao.
     """
-    max_ai_card_renders = 20
     player = rotation_list[player_index]
     position = camera_pov_mapping(camera_pov_index, player_index)
     screen_mid_w = WIDTH // 2
@@ -112,25 +111,27 @@ def calculate_card_destination_position(rotation_list, player_index, camera_pov_
                 card.destination_y = int(HEIGHT - (175 * SCALING_RATIO))
 
     # Ai deck renders
-    if player_deck_len > max_ai_card_renders:
-        player_deck_len = max_ai_card_renders
+    if player_deck_len > MAX_AI_CARD_RENDERS:
+        player_deck_len = MAX_AI_CARD_RENDERS
     overlap = 35 - player_deck_len
     if position == 0:  # left deck rendering
         pixel_card_overlap = percentage(overlap, CARD_WIDTH)
-        for index, card in enumerate(player.deck[:max_ai_card_renders]):
+        for index, card in enumerate(player.deck):
+            index = index if index < MAX_AI_CARD_RENDERS else MAX_AI_CARD_RENDERS
             card.destination_x = int(-50 * SCALING_RATIO)
             card.destination_y = int(((screen_mid_h - card.rect.width // 2) + pixel_card_overlap * index) - (
                         pixel_card_overlap * (player_deck_len - 1)) // 2)
     elif position == 1:  # right deck rendering
-        overlap = 35 - player_deck_len
         pixel_card_overlap = percentage(overlap, CARD_WIDTH)
-        for index, card in enumerate(player.deck[:max_ai_card_renders]):
+        for index, card in enumerate(player.deck):
+            index = index if index < MAX_AI_CARD_RENDERS else MAX_AI_CARD_RENDERS
             card.destination_x = int(WIDTH - (150 * SCALING_RATIO))
             card.destination_y = int(((screen_mid_h - card.rect.width // 2) - pixel_card_overlap * index) + (
                         pixel_card_overlap * (player_deck_len - 1)) // 2)
     elif position == 2:  # opposite deck rendering
         pixel_card_overlap = percentage(overlap, CARD_WIDTH)
-        for index, card in enumerate(player.deck[:max_ai_card_renders]):
+        for index, card in enumerate(player.deck):
+            index = index if index < MAX_AI_CARD_RENDERS else MAX_AI_CARD_RENDERS
             card.destination_x = int(((screen_mid_w - card.rect.width // 2) - pixel_card_overlap * index) + (
                         pixel_card_overlap * (player_deck_len - 1)) // 2)
             card.destination_y = int(-50 * SCALING_RATIO)
@@ -172,7 +173,7 @@ def card_pickup_spawn_location(card, player, player_index, camera_pov_index):
         card.rect.y = HEIGHT - (175 * SCALING_RATIO)
     elif position == 0:
         card.rect.x = -50
-        card.rect.y = 700 * SCALING_RATIO
+        card.rect.y = 1500 * SCALING_RATIO
         card.rect.width = 200
         card.rect.height = 150
     elif position == 1:

@@ -42,11 +42,13 @@ class CardRendering:
     def render_cards(self):
         # Deck renders
         for i, player in enumerate(self.rotation_list):
-            for card in player.deck:
-                if i == self.camera_pov_index:
+            if i == self.camera_pov_index:
+                for card in player.deck:
                     self.display.blit(card_image_map[(card.card_color.title(), str(card.card_type))], card.rect)
-                else:
+            else:
+                for card in player.deck:
                     self.display.blit(pygame.transform.rotate(asset_map["Uno Card Back"], card.rotation), card.rect)
+
         # Render leaving cards
         for i, card in enumerate(self.moving_cards_leaving):
             self.display.blit(pygame.transform.rotate(card_image_map[(card.card_color.title(), str(card.card_type))], card.rotation), card.rect)
