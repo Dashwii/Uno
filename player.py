@@ -2,7 +2,6 @@ from init_stuff import *
 from draw_text import DrawText
 
 
-
 class Player:
     def __init__(self, name):
         self.camera_pov = True
@@ -12,8 +11,8 @@ class Player:
         self.stack_threat = False
         self.current_hovered_card_index = 0
         self.status = None
-        self.state = None
         self.decision = None
+        self.index = False
 
     def input(self, events, current_board_color, current_board_type):
         if self.decision is not None:
