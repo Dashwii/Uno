@@ -1,4 +1,7 @@
 import pygame
+import ctypes
+
+ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('edwdwawawadwadwadwa')  # Code to set taskbar icon. String is arbitrary
 
 WIDTH = 1920
 HEIGHT = 1080
@@ -13,7 +16,7 @@ FPS = 60
 
 CARD_WIDTH = 150 * SCALING_RATIO
 CARD_HEIGHT = 200 * SCALING_RATIO
-CARD_UPDATE_SPEED = 5 * SCALING_RATIO
+CARD_UPDATE_SPEED = 6 * SCALING_RATIO
 UNUSED_DECK_POSITION = (250 * SCALING_RATIO, 0)
 MAX_AI_CARD_RENDERS = 20
 
@@ -29,6 +32,10 @@ pygame.mixer.music.load("assets/music/music flip theme.mp3")
 pygame.mixer.music.set_volume(0.05)
 
 display = pygame.display.set_mode((WIDTH, HEIGHT))
+
+uno_icon = pygame.image.load("assets/Uno Game Assets/Uno_Logo.png")
+pygame.display.set_icon(uno_icon)
+pygame.display.set_caption("Uno!")
 
 BOARD_DIRECTION = pygame.transform.scale(pygame.image.load("assets/Uno Game Assets/board_direction.png").convert_alpha(), (DESIGN_WIDTH * SCALING_RATIO, DESIGN_HEIGHT * SCALING_RATIO))
 BOARD_DIRECTION_REVERSE = pygame.transform.scale(pygame.image.load("assets/Uno Game Assets/board_direction_reverse.png").convert_alpha(), (DESIGN_WIDTH * SCALING_RATIO, DESIGN_HEIGHT * SCALING_RATIO))
