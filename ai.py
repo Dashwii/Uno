@@ -39,6 +39,12 @@ If the same color is advantageous for the AI. Determine who is closer to winning
 # Class AI advanced decisions, a helper class that will give function for specific sceneraios the AI should switch state to.
 # E.g. trying to reverse the board. Waiting for a chance to stack against a player.
 
+AI_NAMES = [
+    "Bot 1",
+    "Bot 2",
+    "Bot 3",
+]
+
 
 class AI:
     def __init__(self, name, deck, board):
@@ -57,6 +63,7 @@ class AI:
 
         self.index = False
         self.ai_functs = AIFuncts(self)
+        self.score = 0
 
     def play(self, current_board_color, current_board_type):
         """
@@ -68,8 +75,7 @@ class AI:
     def get_playable_card(self, current_board_color, current_board_type):
         self.ai_functs.update_state(current_board_color, current_board_type)
         self.decision = self.ai_functs.decision_path()
-        if self.decision != "pickup":
-            self.chosen_card_index = self.deck.index(self.decision)
+        self.chosen_card_index = self.deck.index(self.decision)
 
     # This function is used for the specific states in order to not waste time.
     # If the AI is hoping for a specific type of card but there aren't any new cards in it's deck it won't waste time to check.
@@ -167,21 +173,15 @@ class AIFuncts:
         """
         Main decision path for AIFuncts. This method will decide which method should be used for retrieving the best card for the current move and states of the AI.
         """
-        chosen_card = None
         if self.stack_threat or self.prevent_win:
             chosen_card = self.draw_card_case()
-            if chosen_card is None and self.stack_threat:
-                return "pickup"
         elif self.reverse:
             chosen_card = self.reverse_priority()
         elif self.skip:
             chosen_card = self.skip_priority()
         else:
             chosen_card = self.no_priority()
-        if chosen_card is None:
-            return "pickup"
-        else:
-            return chosen_card
+        return chosen_card
 
     def no_priority(self):
         """
@@ -208,15 +208,12 @@ class AIFuncts:
             # Wild draw ratings
             elif card.card_type == "wild draw":
                 card_ratings.append((card, 1))
-        if card_ratings:
-            card = sort_highest_rated(card_ratings)
-            if card.card_color == "black":
-                highest_color_amount = count_colored_amount(self.deck)
-                new_color = color_change(highest_color_amount, self.game_card_color)
-                card.wild_color = new_color
-            return card
-        if not card_ratings:
-            return None
+        card = sort_highest_rated(card_ratings)
+        if card.card_color == "black":
+            highest_color_amount = get_highest_color_amount(self.deck)
+            new_color = color_change(highest_color_amount, self.game_card_color)
+            card.wild_color = new_color
+        return card
 
     def draw_card_case(self):
         """
@@ -233,14 +230,21 @@ class AIFuncts:
             Remember_target will be set to false and targeting set to true.
             Launch base case if no card available."""
         card_ratings = []
-        color_stats = count_colored_amount(self.deck)
-        if self.ai.stack_threat == 1:
-            for card in self.deck:
-                if card.card_type == "draw":
-                    card_ratings.append((card, 10))
-                elif card.card_color == "black" and card.card_type == "wild draw":
-                    card_ratings.append((card, 5))
-        elif self.ai.stack_threat == 2:
+        color_stats = get_highest_color_amount(self.deck)
+        if self.ai.stack_threat:
+            if self.game_card_type == "draw":
+                for card in self.deck:
+                    if card.card_type == "draw" and card.card_color == get_highest_color_amount(self.deck):
+                        card_ratings.append((card, 10))
+                    elif card.card_type == "draw":
+                        card_ratings.append((card, 5))
+            elif self.game_card_type == "wild draw":
+                for card in self.deck:
+                    if card.card_color == "black" and card.card_type == "wild draw":
+                        new_color = color_change(color_stats, self.game_card_color)
+                        card.wild_color = new_color
+                        return card
+        elif self.prevent_win:
             for card in self.deck:
                 if card.card_color == self.game_card_color and card.card_type == "draw":
                     card_ratings.append((card, 5))
@@ -253,7 +257,7 @@ class AIFuncts:
                 card.wild_color = new_color
             return card
         else:
-            return None
+            return self.no_priority() # Will only return no priority if were in a prevent_win state and have no draw cards.
 
     def reverse_priority(self):
         """
@@ -325,103 +329,7 @@ def check_if_new_cards_added(deck, previous_deck_length):
     if len(deck) > previous_deck_length:
         return True
     else:
-        return False 
-
-
-def no_priority(deck, game_card_color, game_card_type):
-    """
-    Filter out cards that are not same color or number as current board color/number.
-    Special cards rated lowest (e.g. draw, reverse, skip)
-    Regular colored cards (0-9) rated highest. 
-    Play highest rated card (If multiple have same rating, pick any card out of the group of highest)
-    If no available card launch color change."""
-    card_ratings = []
-    color_stats = count_colored_amount(deck)
-    for card in deck:
-        # Special card ratings (Draw, Skip, Reverse)  # -1 Used to be "None" I changed it for some reason
-        if (card.card_color == game_card_color or game_card_color == "-1") and card.card_type not in range(0, 10):
-            card_ratings.append((card, 5))
-        # Regular card ratings
-        elif (card.card_color == game_card_color or game_card_color == "-1") and card.card_type in range(0, 10):
-            card_ratings.append((card, 10))
-        # Cards with same number as game
-        elif card.card_type == game_card_type:
-            card_ratings.append((card, 7))
-        # Wild card ratings
-        elif card.card_type == "wild":
-            card_ratings.append((card, 3))
-        # Wild draw ratings
-        elif card.card_type == "wild draw":
-            card_ratings.append((card, 1))
-    if card_ratings:
-        card = sort_highest_rated(card_ratings)
-        if card.card_color == "black":
-            new_color = color_change(color_stats, game_card_color)
-            card.wild_color = new_color
-        return card
-    else:
-        return None
-    
-
-def draw_card_case(deck, game_color, threat_level):
-    """
-    Depending on thereat level, cards will be rated differently.
-    If threat level is 1:
-        If regular draw cards are available. (Same color as board). Regular draw cards rated highest.
-        Wild draw rated lower.
-    If threat level is 2:
-        Wild draws rated highest, regular draw cards rated lower.
-        If no draw cards availble. Target flag set to false.
-        Remember_target variable set to true.
-        Targeting set to false will prevent waste of resources.
-        If a card is picked up and it's a draw card OR the game board color has changed and a draw card is now available.
-        Remember_target will be set to false and targeting set to true.
-        Launch base case if no card available."""
-    card_ratings = []
-    color_stats = count_colored_amount(deck)
-    if threat_level == 1:
-        for card in deck:
-            if card.card_color == game_color and card.card_type == "draw":
-                card_ratings.append((card, 10))
-            elif card.card_color == "black" and card.card_type == "wild draw":
-                card_ratings.append((card, 5))
-    elif threat_level == 2:
-        for card in deck:
-            if card.card_color == game_color and card.card_type == "draw":
-                card_ratings.append((card, 5))
-            elif card.card_color == "black" and card.card_type == "wild draw":
-                card_ratings.append((card, 10))
-    if card_ratings:
-        card = sort_highest_rated(card_ratings)
-        if card.card_color == "black":
-            new_color = color_change(color_stats, game_color)
-            card.wild_color = new_color
-        return card
-    else:
-        return None 
-
-
-def reverse_priority(deck, game_color, game_number):
-    """
-    If reverse cards are in deck and have same color as game board. The card is automatically played.
-    If no card available, launch base case. Same memory system used in draw_card_case
-    """
-    for card in deck:
-        if card.card_color == game_color and card.card_type == "reverse":
-            return card
-    else:
-        return no_priority(deck, game_color, game_number)
-    
-    
-def skip_priority(deck, game_color, game_number):
-    """
-    If skip cards are in deck and have same color as game board. The card is auttomatically played. If no card available launch base case. Same memory system used in draw_card_case
-    """
-    for card in deck:
-        if card.card_color == game_color and card.card_type == "skip":
-            return card
-    else:
-        return no_priority(deck, game_color, game_number)
+        return False
 
 
 def color_change(highest_number_color, current_color):
@@ -436,9 +344,9 @@ def color_change(highest_number_color, current_color):
 def sort_highest_rated(card_ratings):
     sorted_cards = sorted(card_ratings, key=lambda tup: tup[1], reverse=True)
     return sorted_cards[0][0]
-    
 
-def count_colored_amount(card_deck):
+
+def get_highest_color_amount(card_deck):
     color_amounts = {"red": 0, "green": 0, "blue": 0, "yellow": 0}
     for card in card_deck:
         if card.card_color != "black":
