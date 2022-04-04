@@ -1,5 +1,5 @@
 from init_stuff import *
-from draw_text import RenderText
+from draw_text import DrawText
 
 
 """
@@ -30,20 +30,21 @@ def render_skipped(player_index, camera_pov_index):
         display.blit(SKIPPED_ICON, (WIDTH // 2 - SKIPPED_ICON.get_width() // 2, 250 - SKIPPED_ICON.get_height() // 2))
 
 
-def create_ai_render_names(rotation_list, camera_pov_index):
+def create_render_names(rotation_list, camera_pov_index):
     name_renders = []
     for i, player in enumerate(rotation_list):
         if i == camera_pov_index:  # Skip of player's camera_pov
-            continue
+            name_renders.append(None)
         position = camera_pov_mapping(camera_pov_index, i)
         if position == 0:  # left deck render
-            ai_name = RenderText(player.name, (50, 200 * SCALING_RATIO))
+            ai_name = DrawText(player.name, (25, 185 * SCALING_RATIO))
             name_renders.append(ai_name)
         elif position == 1:  # right deck render
-            ai_name = RenderText(player.name, (WIDTH - 50, 200 * SCALING_RATIO))
+            ai_name = DrawText(player.name, (WIDTH - 50, 185 * SCALING_RATIO))
+            ai_name.position = (((WIDTH - 25) - ai_name.text_surface.get_width()), 175 * SCALING_RATIO)
             name_renders.append(ai_name)
         elif position == 2:  # opposite deck render
-            ai_name = RenderText(player.name, (WIDTH // 2 + (400 * SCALING_RATIO), 30))
+            ai_name = DrawText(player.name, (WIDTH // 2 + (400 * SCALING_RATIO), 30))
             name_renders.append(ai_name)
     return name_renders
 
@@ -113,25 +114,25 @@ def calculate_card_destination_position(rotation_list, player_index, camera_pov_
     # Ai deck renders
     if player_deck_len > MAX_AI_CARD_RENDERS:
         player_deck_len = MAX_AI_CARD_RENDERS
-    overlap = 35 - player_deck_len
+    overlap = (32 - player_deck_len) * SCALING_RATIO
     if position == 0:  # left deck rendering
         pixel_card_overlap = percentage(overlap, CARD_WIDTH)
         for index, card in enumerate(player.deck):
-            index = index if index < MAX_AI_CARD_RENDERS else MAX_AI_CARD_RENDERS
+            index = index if index < MAX_AI_CARD_RENDERS else MAX_AI_CARD_RENDERS - 1
             card.destination_x = int(-50 * SCALING_RATIO)
             card.destination_y = int(((screen_mid_h - card.rect.width // 2) + pixel_card_overlap * index) - (
                         pixel_card_overlap * (player_deck_len - 1)) // 2)
     elif position == 1:  # right deck rendering
         pixel_card_overlap = percentage(overlap, CARD_WIDTH)
         for index, card in enumerate(player.deck):
-            index = index if index < MAX_AI_CARD_RENDERS else MAX_AI_CARD_RENDERS
+            index = index if index < MAX_AI_CARD_RENDERS else MAX_AI_CARD_RENDERS - 1
             card.destination_x = int(WIDTH - (150 * SCALING_RATIO))
             card.destination_y = int(((screen_mid_h - card.rect.width // 2) - pixel_card_overlap * index) + (
                         pixel_card_overlap * (player_deck_len - 1)) // 2)
     elif position == 2:  # opposite deck rendering
         pixel_card_overlap = percentage(overlap, CARD_WIDTH)
         for index, card in enumerate(player.deck):
-            index = index if index < MAX_AI_CARD_RENDERS else MAX_AI_CARD_RENDERS
+            index = index if index < MAX_AI_CARD_RENDERS else MAX_AI_CARD_RENDERS - 1
             card.destination_x = int(((screen_mid_w - card.rect.width // 2) - pixel_card_overlap * index) + (
                         pixel_card_overlap * (player_deck_len - 1)) // 2)
             card.destination_y = int(-50 * SCALING_RATIO)
