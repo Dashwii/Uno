@@ -13,6 +13,7 @@ class Player:
         self.status = None
         self.decision = None
         self.index = False
+        self.score = 0
 
     def input(self, events, current_board_color, current_board_type):
         if self.decision is not None:
