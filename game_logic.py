@@ -1,16 +1,14 @@
 from player import *
-from ai import AI
+from ai import AI, AI_NAMES
 from deck import return_deck
 from random import shuffle
 from render import *
 import time
 
-
-AI_NAME_LIST = list(reversed(["Bot", "Bot2", "Bot3"]))
-
 update_card_positions_event = pygame.USEREVENT + 1
 pygame.time.set_timer(update_card_positions_event, 1)
 
+shuffle(AI_NAMES)
 
 
 class Board:
@@ -19,12 +17,12 @@ class Board:
         self.display = pygame.display.get_surface()
         self.playing = True
         self.current_state = "dealing_cards"
-        self.all_states = {"dealing_cards": self.deal_cards, "in game": self.game_flow, "game over": self.end_game}
+        self.all_states = {"dealing_cards": self.deal_cards_state, "in game": self.game_flow_state, "game over": self.end_game_state}
         self.deck = return_deck()
         self.player = Player("Player")
-        self.bots = [AI(AI_NAME_LIST[_], [], self) for _ in range(3)]
+        self.bots = [AI(AI_NAMES.pop(_ - 2), [], self) for _ in range(3)]
         self.rotation_list = [self.player] + self.bots
-        shuffle(self.rotation_list)
+        #shuffle(self.rotation_list)
         for i, player in enumerate(self.rotation_list):
             player.index = i
         self.camera_pov_index = get_camera_pov_index(self.rotation_list)
@@ -32,14 +30,16 @@ class Board:
         self.state_switched = False
         self.winning_player = None
 
-        self.card_rendering = CardRendering(self)
+        self.board_rendering = BoardRendering(self)
         self.game_flow = GameFlowState(self)
         self.end_game = EndGame(self)
-        self.card_dealer = DealingCardState(self.rotation_list, self.deck, self.card_rendering)
+        self.card_dealer = DealingCardState(self.rotation_list, self.deck, self.board_rendering)
 
-        self.reset = False
+        self.new_round = False
 
-        pygame.mixer.music.play()
+        self.round_count = 1
+
+        pygame.mixer.music.play(-1)
         pygame.event.wait()
 
     def play(self):
@@ -47,21 +47,37 @@ class Board:
         if self.current_state != "game over":
             self.update_board_render()
 
-    def deal_cards(self):
+    def deal_cards_state(self):
         self.card_dealer.deal_cards()
-        if self.card_dealer.end_dealing_state and self.card_rendering.check_moving_cards_done():
+        if self.card_dealer.end_dealing_state and self.board_rendering.check_moving_cards_done():
             self.switch_states("in game")
 
-    def game_flow(self):
+    def game_flow_state(self):
         self.game_flow.game_loop()
         if not self.game_flow.playing:
             self.current_state = "game over"
             self.state_switched = True
 
-    def end_game(self):
+    def end_game_state(self):
         self.end_game.game_loop()
         if self.state_switched:
             self.state_switched = False
+        if self.new_round:
+            self.reset_to_new_round()
+
+    def reset_to_new_round(self):
+        for player in self.rotation_list:
+            player.deck = []
+        if self.round_count == 4:
+            self.round_count = 0
+            for player in self.rotation_list:
+                player.score = 0
+        self.round_count += 1
+        self.deck = return_deck()
+        self.game_flow = GameFlowState(self)
+        self.card_dealer = DealingCardState(self.rotation_list, self.deck, self.board_rendering)
+        self.current_state = "dealing_cards"
+        self.new_round = False
 
     def update_board_render(self):
         for i, player in enumerate(self.rotation_list):
@@ -72,7 +88,7 @@ class Board:
             set_card_rotation_for_deck(self.rotation_list, i, self.camera_pov_index)
         for event in self.game.events:
             if event.type == update_card_positions_event:
-                update_card_positions(self.game_flow.rotation_list, self.card_rendering.moving_cards_leaving)
+                update_card_positions(self.game_flow.rotation_list, self.board_rendering.moving_cards_leaving)
 
         if not self.game_flow.iteration_reversed:
             self.display.blit(asset_map["Board Direction"], (0, 50 * SCALING_RATIO))
@@ -82,8 +98,9 @@ class Board:
         if self.game_flow.skipped:
             render_skipped(self.game_flow.current_player_index, self.camera_pov_index)
 
-        self.card_rendering.render_ai_names()
-        self.card_rendering.render_cards()
+        self.board_rendering.render_ai_names()
+        self.board_rendering.render_cards()
+        self.game_flow.render_used_deck()
 
     def switch_states(self, switch):
         self.current_state = switch
@@ -95,10 +112,13 @@ class GameFlowState:
         self.board = board
         self.rotation_list = self.board.rotation_list
         self.deck = self.board.deck
-        self.card_rendering = self.board.card_rendering
+        self.board_rendering = self.board.board_rendering
+
         self.camera_pov_index = self.board.camera_pov_index
 
         self.current_player_index = 0
+        self.last_player_index = 0
+        self.board_rendering.update_rotation_interface_color(self.current_player_index, None)
         self.current_stack = 0
         self.current_board_color = None
         self.current_board_type = None
@@ -113,24 +133,21 @@ class GameFlowState:
 
         self.used_deck = []
 
-        self.update_rotation_interface_color("green")
-
         self.next_round_skip = False
 
     def game_loop(self):
         self.play_move()
-        self.render_used_deck()
         self.iteration()
 
     def iteration(self):
         # This will not iterate until iteration_rotation is true. It'll be true when the current player is done with their turn and cards moving on the board are in place.
         if self.iterate_rotation:
             self.check_win()
-            self.update_rotation_interface_color("white")
             self.reset_players_status()
+            self.last_player_index = self.current_player_index
             self.player_rotation()
+            self.board_rendering.update_rotation_interface_color(self.current_player_index, self.last_player_index)
             self.iterate_rotation = False
-            self.update_rotation_interface_color("green")
             if self.current_player_index == self.camera_pov_index:
                 self.rotation_list[self.current_player_index].auto_highlight(self.current_board_color, self.current_board_type)
             if self.next_round_skip:
@@ -140,21 +157,20 @@ class GameFlowState:
                 self.skipped = False
 
     def check_win(self):
-        for player in self.rotation_list:
-            if len(player.deck) == 0:
-                self.board.winning_player = player
-                self.playing = False
+        if len(self.rotation_list[self.current_player_index].deck) == 0:
+            self.board.winning_player = self.current_player_index
+            self.playing = False
 
     def update_rotation_interface_color(self, color, game_start=False):
         if game_start:
             if not hasattr(self.rotation_list[self.current_player_index], "camera_pov"):
-                self.card_rendering.name_renders[self.current_player_index].update_color(color)
+                self.board_rendering.name_renders[self.current_player_index].update_color(color)
             return
         if not hasattr(self.rotation_list[self.current_player_index], "camera_pov"):
             if self.current_player_index + 1 > 2:  # Account for player having a turn, prevents IndexError
-                self.card_rendering.name_renders[self.current_player_index - 1].update_color(color)
+                self.board_rendering.name_renders[self.current_player_index - 1].update_color(color)
             else:
-                self.card_rendering.name_renders[self.current_player_index].update_color(color)
+                self.board_rendering.name_renders[self.current_player_index].update_color(color)
 
     def player_rotation(self):
         if self.iteration_reversed:
@@ -182,21 +198,26 @@ class GameFlowState:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
-                else:
-                    if event.type == pygame.KEYDOWN:
-                        if event.key == pygame.K_LEFT:
-                            if current_selected_color_index - 1 < 0:
-                                current_selected_color_index = len(colors) - 1
-                            else:
-                                current_selected_color_index -= 1
-                        if event.key == pygame.K_RIGHT:
-                            if current_selected_color_index + 1 > len(colors):
-                                current_selected_color_index = 0
-                            else:
-                                current_selected_color_index += 1
-                        if event.key == pygame.K_SPACE:
-                            return colors[current_selected_color_index]
+                if event.type == update_card_positions_event:
+                    update_card_positions(self.rotation_list, self.board_rendering.moving_cards_leaving)
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_LEFT:
+                        if current_selected_color_index - 1 < 0:
+                            current_selected_color_index = len(colors) - 1
+                        else:
+                            current_selected_color_index -= 1
+                    if event.key == pygame.K_RIGHT:
+                        if current_selected_color_index + 1 > len(colors):
+                            current_selected_color_index = 0
+                        else:
+                            current_selected_color_index += 1
+                    if event.key == pygame.K_SPACE:
+                        return colors[current_selected_color_index]
+
+
             display.blit(BACKGROUND_ALT, (0, 0))
+            self.board_rendering.render_cards(player_color_choosing_state=True)
+            calculate_card_destination_position(self.rotation_list, self.camera_pov_index, self.camera_pov_index, False)
             for i, color in enumerate(colors_images):
                 if current_selected_color_index == i:
                     display.blit(colors_images[i], (colors_positions[i], HEIGHT // 2 - 300))
@@ -215,7 +236,6 @@ class GameFlowState:
         """
         player = self.rotation_list[self.current_player_index]
 
-
         # Some initial checks before the player is allowed to give input
         if self.skipped:
             if self.round_delay_switch():
@@ -230,7 +250,6 @@ class GameFlowState:
                 player.status = "STACK PICKUP"
         elif not self.check_any_playable_cards(player) and player.status is None:
             player.status = "NO PLAYABLE CARDS"
-
 
         if player.status is None:
             self.allow_render_raised_card = True
@@ -277,7 +296,7 @@ class GameFlowState:
                 player.status = "WAITING"
 
         elif player.status == "WAITING":
-            if self.card_rendering.check_moving_cards_leaving_done():
+            if self.board_rendering.check_moving_cards_leaving_done():
                 if self.round_delay_switch():
                     self.iterate_rotation = True
 
@@ -311,11 +330,11 @@ class GameFlowState:
                 player_ai.status = "WAITING"
             elif player_ai.status == "NO PLAYABLE CARDS":
                 any_playable_cards = self.check_any_playable_cards(player_ai)
-                if any_playable_cards:
+                if any_playable_cards and self.board_rendering.check_moving_cards_done():
                     player_ai.status = None
 
         elif player_ai.status == "WAITING":
-            if self.card_rendering.check_moving_cards_leaving_done():
+            if self.board_rendering.check_moving_cards_leaving_done():
                 if self.round_delay_switch():
                     self.iterate_rotation = True
 
@@ -331,7 +350,7 @@ class GameFlowState:
         self.current_board_type = card.card_type
         if card.card_type not in range(0, 9) and card.card_type != "wild":  # <-- Handle special type cards
             self.special_cards(card.card_type)
-        self.card_rendering.card_leaving_deck_animation(card)
+        self.board_rendering.card_leaving_deck_animation(card)
 
     def special_cards(self, special_type):
         if special_type == "wild draw":
@@ -347,15 +366,22 @@ class GameFlowState:
         if self.current_board_color is None:
             return True
         if self.current_stack:
-            for card in player.deck:
-                if card.card_type == "wild draw" or card.card_type == "draw":
-                    return card
-            else:
-                return False
+            if self.current_board_type == "draw":
+                for card in player.deck:
+                    if card.card_type == "draw":
+                        return card  # Should really be true instead of returning the card.
+                else:
+                    return False
+            elif self.current_board_type == "wild draw":
+                for card in player.deck:
+                    if card.card_type == "wild draw":
+                        return card
+                else:
+                    return False
         else:
             for card in player.deck:
                 if card.card_color == self.current_board_color or card.card_type in (self.current_board_type, "wild", "wild draw"):
-                    return card
+                    return card  # Should really be true instead of returning the card.
             else:
                 return False
 
@@ -374,15 +400,16 @@ class GameFlowState:
                 return False
 
     def round_delay_switch(self):
+        round_switch_delay = .75
         if self.time_delay is None:
             self.time_delay = time.time()
-        if time.time() - self.time_delay >= 1.5:
+        if time.time() - self.time_delay >= round_switch_delay:
             self.time_delay = None
             return True
 
     def render_used_deck(self):
         if self.used_deck:
-            self.card_rendering.render_used_deck(self.used_deck)
+            self.board_rendering.render_used_deck(self.used_deck)
 
     def pickup_cards(self):
         """
@@ -404,15 +431,15 @@ class GameFlowState:
         """
         if self.card_pickup_delay is None:
             self.card_pickup_delay = time.time() - 1000
-        if time.time() - self.card_pickup_delay > 1:
+        if time.time() - self.card_pickup_delay > .5:
             self.card_pickup_delay = time.time()
             self.deck_rebuild_checker()
             card = self.deck.pop()
             self.rotation_list[self.current_player_index].deck.append(card)
-            self.card_rendering.card_pickup_animation(card, self.current_player_index)
+            self.board_rendering.card_pickup_animation(card, self.current_player_index)
             if self.current_stack > 0:
                 self.current_stack -= 1
-            return card # Card will be returned if needed in case it's needed to checks.
+            return card # Card will be returned if needed in case it's needed for checks.
 
     def deck_rebuild_checker(self):
         if len(self.deck) - 1 < 0:
@@ -425,10 +452,7 @@ class GameFlowState:
     def reset_players_status(self):
         self.rotation_list[self.current_player_index].status = None
         self.rotation_list[self.current_player_index].decision = None
-        if self.current_player_index == self.camera_pov_index:
-            self.rotation_list[self.current_player_index].stack_threat = False
-        else:
-            self.rotation_list[self.current_player_index].stack_threat = 0
+        self.rotation_list[self.current_player_index].stack_threat = False
 
 
 class DealingCardState:
@@ -446,15 +470,19 @@ class DealingCardState:
         self.time_began = time.time()
 
     def deal_cards(self):
-        if len(self.rotation_list[-1].deck) == 20:
+        if len(self.rotation_list[-1].deck) == 7:
             self.distributing_done = True
         if self.card_rendering.check_moving_cards_done() and self.distributing_done:
+            # self.rotation_list[0].deck[0].card_color = "black"
+            # self.rotation_list[0].deck[0].card_type = "wild draw"
+            # self.rotation_list[1].deck[0].card_color = "black"
+            # self.rotation_list[1].deck[0].card_type = "wild draw"
             self.end_dealing_state = True
             return
         if self.timer is None:
             self.timer = time.time()
             self.distribute()
-        elif time.time() - self.timer > .01 and self.card_rendering.check_moving_cards_done() and not self.distributing_done:  # Distribute cards if timer is ready and every player does not have 7 cards already.
+        elif time.time() - self.timer > .075 and not self.distributing_done:  # Distribute cards if timer is ready and every player does not have 7 cards already.
             self.timer = time.time()
             self.distribute()
 
@@ -474,29 +502,59 @@ class EndGame:
     def __init__(self, board):
         self.board = board
         self.display = self.board.display
+        self.rotation_list = self.board.rotation_list
+        self.score_board = ScoreBoard(self.board)
 
     def game_loop(self):
         if self.board.state_switched:
-            self.winner_text = RenderText(f"{self.board.winning_player.name} won the game", (WIDTH // 2, 400), font_size=80)
-            self.play_again_text = RenderText("Play again?", (self.winner_text.text_rect.x + self.winner_text.text_rect.width - 100, 500))
-            self.quit_text = RenderText("Quit", (self.winner_text.text_rect.x + 75, 500))
-        self.display.fill("black")
-        self.render_texts()
+            self.score_board.add_score()
+            self.score_board.update_text(self.board.winning_player)
+        self.score_board.draw_board()
         self.input()
 
     def input(self):
-        mouse_pos = pygame.mouse.get_pos()
         for event in self.board.game.events:
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                if self.quit_text.text_rect.collidepoint(mouse_pos):
-                    pygame.display.quit()
-                if self.play_again_text.text_rect.collidepoint(mouse_pos):
-                    self.board.reset = True
+            if event.type == pygame.QUIT:
+                pygame.display.quit()
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                self.board.new_round = True
 
-    def render_texts(self):
-        self.winner_text.render()
-        self.play_again_text.render()
-        self.quit_text.render()
+
+class ScoreBoard:
+    def __init__(self, board):
+        self.display = pygame.display.get_surface()
+        self.board = board
+        self.rotation_list = self.board.rotation_list
+        self.player_score_list = [[player, DrawText(player.name, [600 * SCALING_RATIO, 0]), DrawText(player.score, [0, 0])] for player in self.rotation_list]
+        self.score_board_rect = pygame.Rect((0, 0), (1000 * SCALING_RATIO, 500 * SCALING_RATIO))
+        self.score_board_rect.x, self.score_board_rect.y = (WIDTH // 2 - self.score_board_rect.width // 2), (HEIGHT // 2 - self.score_board_rect.height // 2)
+        self.winning_player_text = DrawText("", [0, self.score_board_rect.y + (15 * SCALING_RATIO)])
+
+    def update_text(self, winning_player_index):
+        self.player_score_list.sort(key=lambda x: x[0].score, reverse=True)
+        for index, player in enumerate(self.player_score_list):
+            self.player_score_list[index][1].position[1] = self.score_board_rect.y + ((100 + (index * 100)) * SCALING_RATIO)  # Name Positioning
+            # Score positioning
+            self.player_score_list[index][2].position[0] = self.score_board_rect.x + (self.score_board_rect.width - (200 * SCALING_RATIO))
+            self.player_score_list[index][2].position[1] = self.score_board_rect.y + ((100 + (index * 100)) * SCALING_RATIO)
+        if self.board.round_count == 4:
+            self.winning_player_text.update_text(f"{self.player_score_list[0][0].name} won the game!")
+        else:
+            self.winning_player_text.update_text(f"{self.rotation_list[winning_player_index].name} won the round!")
+        self.winning_player_text.position[0] = (self.score_board_rect.x + self.score_board_rect.width // 2) - self.winning_player_text.text_surface.get_width() // 2
+
+    def add_score(self):
+        scores = [250, 75, 50, 25]
+        for index, player in enumerate(sorted(self.player_score_list, key=lambda x: len(x[0].deck))):
+            player[0].score += scores[index]
+            player[2].update_text(player[0].score)
+
+    def draw_board(self):
+        pygame.draw.rect(self.display, "black", self.score_board_rect)
+        self.winning_player_text.render()
+        for player in self.player_score_list:
+            player[1].render()
+            player[2].render()
 
 
 def get_camera_pov_index(rotation_list):
