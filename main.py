@@ -11,8 +11,6 @@ class Game:
 
     def run(self):
         while True:
-            if self.board.reset:
-                self.board = Board(self)
             self.handle_events()
             self.display.blit(BACKGROUND, (0, 0))
             self.board.play()
