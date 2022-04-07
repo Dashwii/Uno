@@ -2,13 +2,25 @@ import pygame
 import ctypes
 
 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('edwdwawawadwadwadwa')  # Code to set taskbar icon. String is arbitrary
+user32 = ctypes.windll.user32
 
-WIDTH = 1920
-HEIGHT = 1080
+DISPLAY_RANGES = [(1280, 720), (1360, 765), (1920, 1080), (2560, 1440), (2320, 1305), (3840, 2160)]
+SCREEN_SIZE = user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
+
+
+def get_good_display_size():
+    width, height = 0, 0
+    for display in DISPLAY_RANGES:
+        if display[0] < SCREEN_SIZE[0] and display[1] < SCREEN_SIZE[1]:
+            width = display[0]
+            height = display[1]
+    return width, height
+
+
+WIDTH, HEIGHT = get_good_display_size()
 
 DESIGN_WIDTH = 1920
 DESIGN_HEIGHT = 1080
-
 
 SCALING_RATIO = WIDTH / DESIGN_WIDTH
 
@@ -29,9 +41,9 @@ YELLOW = (255, 255, 0)
 
 pygame.mixer.init()
 pygame.mixer.music.load("assets/music/music flip theme.mp3")
-pygame.mixer.music.set_volume(0.05)
+pygame.mixer.music.set_volume(0.1)
 
-display = pygame.display.set_mode((WIDTH, HEIGHT))
+display = pygame.display.set_mode((WIDTH, HEIGHT), pygame.SCALED)
 
 uno_icon = pygame.image.load("assets/Uno Game Assets/Uno_Logo.png")
 pygame.display.set_icon(uno_icon)
@@ -43,6 +55,8 @@ SKIPPED_ICON = pygame.transform.scale(pygame.image.load("assets/Uno Game Assets/
 
 BACKGROUND = pygame.transform.scale(pygame.image.load("assets/Uno Game Assets/Table_0.png"), (WIDTH, HEIGHT)).convert_alpha()
 BACKGROUND_ALT = pygame.transform.scale(pygame.image.load("assets/Uno Game Assets/Table_1.png"), (WIDTH, HEIGHT)).convert_alpha()
+
+STACK_PORTAL = pygame.transform.scale(pygame.image.load("assets/Uno Game Assets/stack_portal.png"), (350 * SCALING_RATIO, 350 * SCALING_RATIO))
 
 Blue_0 = pygame.transform.scale(pygame.image.load('assets/cards/Blue_0.png'), (CARD_WIDTH, CARD_HEIGHT)).convert_alpha()
 Blue_1 = pygame.transform.scale(pygame.image.load('assets/cards/Blue_1.png'), (CARD_WIDTH, CARD_HEIGHT)).convert_alpha()
@@ -127,25 +141,3 @@ asset_map = {"Uno Card Back": Uno_Back, "Board Direction": BOARD_DIRECTION, "Boa
 
 wild_image_color_map = {"red": Red_Wild, "green": Green_Wild, "blue": Blue_Wild, "yellow": Yellow_Wild}
 wild_draw_image_color_map = {"red": Red_Wild_Draw, "green": Green_Wild_Draw, "blue": Blue_Wild_Draw, "yellow": Yellow_Wild_Draw}
-
-
-def asset_scaler():
-    global SCALING_RATIO
-    SCALING_RATIO = DESIGN_WIDTH / pygame.display.get_surface().get_width()
-    for key, image in card_image_map.items():
-        image = pygame.transform.scale(image, (image.get_width() / SCALING_RATIO, image.get_height() / SCALING_RATIO))
-        card_image_map[key] = image
-    for key, asset in asset_map.items():
-        asset = pygame.transform.scale(asset, (asset.get_width() / SCALING_RATIO, asset.get_height() / SCALING_RATIO))
-        asset_map[key] = asset
-    for key, asset in wild_image_color_map.items():
-        asset = pygame.transform.scale(asset, (asset.get_width() / SCALING_RATIO, asset.get_height() / SCALING_RATIO))
-        wild_image_color_map[key] = asset
-    for key, asset in wild_draw_image_color_map.items():
-        asset = pygame.transform.scale(asset, (asset.get_width() / SCALING_RATIO, asset.get_height() / SCALING_RATIO))
-        wild_draw_image_color_map[key] = asset
-
-"""
-Instead of using variables I'm calling my assets from dictionaries because it allows me to change their image scales easily. 
-I can't rescale a pygame surface in place so I have to edit the variable itself. Calling from dictionaries make life easier for this."""
-
