@@ -35,25 +35,37 @@ class Player:
                     self.check_valid(current_board_color, current_board_type)
 
     def check_valid(self, current_board_color, current_board_type):
-        if self.deck[self.current_hovered_card_index].card_type == "wild draw":
-            self.decision = self.deck[self.current_hovered_card_index]
-        elif self.deck[self.current_hovered_card_index].card_type == "wild" and not self.stack_threat:
+        if self.deck[self.current_hovered_card_index].card_type in ("wild draw", "wild") and not self.stack_threat:
             self.decision = self.deck[self.current_hovered_card_index]
         elif current_board_color is None:
             self.decision = self.deck[self.current_hovered_card_index]
         else:
             if self.stack_threat:
-                if self.deck[self.current_hovered_card_index].card_type == "draw":
+                if self.deck[self.current_hovered_card_index].card_type == "wild draw" and current_board_type == "wild draw":
+                    self.decision = self.deck[self.current_hovered_card_index]
+                if self.deck[self.current_hovered_card_index].card_type == "draw" and current_board_type == "draw":
                     self.decision = self.deck[self.current_hovered_card_index]
             else:
                 if self.deck[self.current_hovered_card_index].card_color == current_board_color or self.deck[self.current_hovered_card_index].card_type == current_board_type:
                     self.decision = self.deck[self.current_hovered_card_index]
 
-    def auto_highlight(self, current_board_color, current_board_type):
-        for i, card in enumerate(self.deck):
-            if card.card_color == current_board_color or card.card_type in (current_board_type, "wild", "wild draw"):
-                self.current_hovered_card_index = i
-                break
+    def auto_highlight(self, current_board_color, current_board_type, board_stack=0):
+        if board_stack > 0:
+            if current_board_type == "wild draw":
+                for i, card in enumerate(self.deck):
+                    if card.card_type == "wild draw":
+                        self.current_hovered_card_index = i
+                        break
+            elif current_board_type == "draw":
+                for i, card in enumerate(self.deck):
+                    if card.card_type == "draw":
+                        self.current_hovered_card_index = i
+                        break
+        else:
+            for i, card in enumerate(self.deck):
+                if card.card_color == current_board_color or card.card_type in ("wild draw", "wild", current_board_type):
+                    self.current_hovered_card_index = i
+                    break
 
     def sort_cards_visual(self):
         red_cards = []
@@ -84,7 +96,7 @@ class Player:
 
 
 class Button:
-    def __init__(self, position=None, dimensions=None, button_color=None, text=None, text_color="black"):
+    def __init__(self, position=None, dimensions=None, button_color=None, text=None, text_center=None, text_color="black"):
         self.display = display
         self.position_x = position[0]
         self.position_y = position[1]
@@ -98,8 +110,12 @@ class Button:
         self.text = text
         if self.text is not None:
             self.text_render = DrawText(self.text, [0, 0], font_size=35, color=text_color)
-            self.text_render.position[0] = self.position_x + (self.text_render.text_surface.get_rect().x // 2)
-            self.text_render.position[1] = self.position_y + (self.text_render.text_surface.get_rect().y // 2)
+            if text_center is not None:
+                self.text_render.position[0] = self.position_x + self.dimension_w // 2 - (self.text_render.text_surface.get_width() // 2)
+                self.text_render.position[1] = self.position_y + self.dimension_h // 2 - (self.text_render.text_surface.get_height() // 2)
+            else:
+                self.text_render.position[0] = self.position_x + (self.text_render.text_surface.get_rect().x // 2)
+                self.text_render.position[1] = self.position_y + (self.text_render.text_surface.get_rect().y // 2)
         if button_color is not None:
             self.button_color = button_color
 
@@ -118,10 +134,8 @@ class Button:
 
 
 unused_deck_button = Button(position=UNUSED_DECK_POSITION, dimensions=(CARD_WIDTH, CARD_HEIGHT))
-play_card_button = Button(position=(WIDTH // 2 + (200 * SCALING_RATIO), HEIGHT - (300 * SCALING_RATIO)), dimensions=(100, 50), button_color="green", text="Play")
-keep_card_button = Button(position=(WIDTH // 2 - (300 * SCALING_RATIO), HEIGHT - (300 * SCALING_RATIO)), dimensions=(100, 50), button_color="orange", text="Keep")
-CHOICE_CARD_DECISION_X = (WIDTH // 2 - CARD_WIDTH // 2) * SCALING_RATIO
-CHOICE_CARD_DECISION_Y = (HEIGHT - (300 * SCALING_RATIO))
+play_card_button = Button(position=(WIDTH // 2 + (200 * SCALING_RATIO), HEIGHT - (300 * SCALING_RATIO)), dimensions=(100 * SCALING_RATIO, 50 * SCALING_RATIO), button_color="green", text="Play", text_center=True)
+keep_card_button = Button(position=(WIDTH // 2 - (300 * SCALING_RATIO), HEIGHT - (300 * SCALING_RATIO)), dimensions=(100 * SCALING_RATIO, 50 * SCALING_RATIO), button_color="orange", text="Keep", text_center=True)
 
 
 def update_choice_buttons(events):
