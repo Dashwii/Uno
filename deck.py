@@ -6,7 +6,7 @@ class Card:
     def __init__(self, card_color, card_type):
         self.card_color = card_color
         self.card_type = card_type
-        self.rect = pygame.Rect((0, 0), (150, 200))
+        self.rect = pygame.Rect((0, 0), (CARD_WIDTH, CARD_HEIGHT))
         self.rotation = 0
         # For wild cards
         self.wild_color = None
