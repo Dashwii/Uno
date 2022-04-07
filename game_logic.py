@@ -22,7 +22,8 @@ class Board:
         self.player = Player("Player")
         self.bots = [AI(AI_NAMES.pop(_ - 2), [], self) for _ in range(3)]
         self.rotation_list = [self.player] + self.bots
-        #shuffle(self.rotation_list)
+        self.AI_prevent_win = False  # Debugging code
+        shuffle(self.rotation_list)
         for i, player in enumerate(self.rotation_list):
             player.index = i
         self.camera_pov_index = get_camera_pov_index(self.rotation_list)
@@ -33,11 +34,9 @@ class Board:
         self.board_rendering = BoardRendering(self)
         self.game_flow = GameFlowState(self)
         self.end_game = EndGame(self)
-        self.card_dealer = DealingCardState(self.rotation_list, self.deck, self.board_rendering)
+        self.card_dealer = DealingCardState(self, self.board_rendering)
 
         self.new_round = False
-
-        self.round_count = 1
 
         pygame.mixer.music.play(-1)
         pygame.event.wait()
@@ -68,16 +67,16 @@ class Board:
     def reset_to_new_round(self):
         for player in self.rotation_list:
             player.deck = []
-        if self.round_count == 4:
-            self.round_count = 0
+        if self.rotation_list[self.winning_player].score >= 500:
             for player in self.rotation_list:
                 player.score = 0
-        self.round_count += 1
         self.deck = return_deck()
         self.game_flow = GameFlowState(self)
-        self.card_dealer = DealingCardState(self.rotation_list, self.deck, self.board_rendering)
+        self.card_dealer = DealingCardState(self, self.board_rendering)
+        self.board_rendering.used_deck_render = []
         self.current_state = "dealing_cards"
         self.new_round = False
+        self.winning_player = None
 
     def update_board_render(self):
         for i, player in enumerate(self.rotation_list):
@@ -85,7 +84,7 @@ class Board:
                 calculate_card_destination_position(self.rotation_list, i, self.camera_pov_index, True)
             else:
                 calculate_card_destination_position(self.rotation_list, i, self.camera_pov_index, False)
-            set_card_rotation_for_deck(self.rotation_list, i, self.camera_pov_index)
+
         for event in self.game.events:
             if event.type == update_card_positions_event:
                 update_card_positions(self.game_flow.rotation_list, self.board_rendering.moving_cards_leaving)
@@ -98,9 +97,12 @@ class Board:
         if self.game_flow.skipped:
             render_skipped(self.game_flow.current_player_index, self.camera_pov_index)
 
+        if self.game_flow.current_stack > 0:
+            self.game_flow.current_stack_text.render()
+            self.display.blit(STACK_PORTAL, (WIDTH // 2 - STACK_PORTAL.get_width() // 2, HEIGHT // 2 - STACK_PORTAL.get_height() // 2))
+
         self.board_rendering.render_ai_names()
         self.board_rendering.render_cards()
-        self.game_flow.render_used_deck()
 
     def switch_states(self, switch):
         self.current_state = switch
@@ -111,7 +113,6 @@ class GameFlowState:
     def __init__(self, board):
         self.board = board
         self.rotation_list = self.board.rotation_list
-        self.deck = self.board.deck
         self.board_rendering = self.board.board_rendering
 
         self.camera_pov_index = self.board.camera_pov_index
@@ -120,6 +121,7 @@ class GameFlowState:
         self.last_player_index = 0
         self.board_rendering.update_rotation_interface_color(self.current_player_index, None)
         self.current_stack = 0
+        self.current_stack_text = DrawText(self.current_stack, (WIDTH // 2 + (150 * SCALING_RATIO), HEIGHT // 2 - (200 * SCALING_RATIO)), font_size=60, color="purple")
         self.current_board_color = None
         self.current_board_type = None
         self.playing = True
@@ -149,7 +151,7 @@ class GameFlowState:
             self.board_rendering.update_rotation_interface_color(self.current_player_index, self.last_player_index)
             self.iterate_rotation = False
             if self.current_player_index == self.camera_pov_index:
-                self.rotation_list[self.current_player_index].auto_highlight(self.current_board_color, self.current_board_type)
+                self.rotation_list[self.current_player_index].auto_highlight(self.current_board_color, self.current_board_type, self.current_stack)
             if self.next_round_skip:
                 self.skipped = True
                 self.next_round_skip = False
@@ -220,7 +222,7 @@ class GameFlowState:
             calculate_card_destination_position(self.rotation_list, self.camera_pov_index, self.camera_pov_index, False)
             for i, color in enumerate(colors_images):
                 if current_selected_color_index == i:
-                    display.blit(colors_images[i], (colors_positions[i], HEIGHT // 2 - 300))
+                    display.blit(colors_images[i], (colors_positions[i], HEIGHT // 2 - (300 * SCALING_RATIO)))
                 else:
                     display.blit(colors_images[i], (colors_positions[i], HEIGHT // 2 - CARD_HEIGHT // 2))
             pygame.display.update()
@@ -275,7 +277,6 @@ class GameFlowState:
 
         elif player.status in ("NO PLAYABLE CARDS", "STACK PICKUP"):
             card = self.pickup_cards()
-            player.sort_cards_visual()
             if card:  # In case a card wasn't added on iteration due to animation delay.
                 player.last_added_card = card
             if player.status == "STACK PICKUP" and self.current_stack == 0:
@@ -306,6 +307,10 @@ class GameFlowState:
             if self.round_delay_switch():
                 self.iterate_rotation = True
             return
+        if len(player_ai.deck) == 1 and self.board.AI_prevent_win:
+            self.current_stack = 2
+            player_ai.status = "STACK PICKUP"
+            print("AI WIN PREVENTION")
 
         if self.current_stack > 0 and player_ai.status is None:
             player_ai.stack_threat = True
@@ -351,12 +356,16 @@ class GameFlowState:
         if card.card_type not in range(0, 9) and card.card_type != "wild":  # <-- Handle special type cards
             self.special_cards(card.card_type)
         self.board_rendering.card_leaving_deck_animation(card)
+        if self.current_player_index != self.camera_pov_index:
+            self.board_rendering.update_number_of_cards_in_deck_render(self.current_player_index)
 
     def special_cards(self, special_type):
         if special_type == "wild draw":
             self.current_stack += 4
+            self.current_stack_text.update_text(f"+{self.current_stack}")
         elif special_type == "draw":
             self.current_stack += 2
+            self.current_stack_text.update_text(f"+{self.current_stack}")
         elif special_type == "skip":
             self.next_round_skip = True
         elif special_type == "reverse":
@@ -407,10 +416,6 @@ class GameFlowState:
             self.time_delay = None
             return True
 
-    def render_used_deck(self):
-        if self.used_deck:
-            self.board_rendering.render_used_deck(self.used_deck)
-
     def pickup_cards(self):
         """
             - Check if stack threat
@@ -434,20 +439,28 @@ class GameFlowState:
         if time.time() - self.card_pickup_delay > .5:
             self.card_pickup_delay = time.time()
             self.deck_rebuild_checker()
-            card = self.deck.pop()
+            card = self.board.deck.pop()
+            set_card_rotation_for_player(card, self.current_player_index, self.camera_pov_index)
             self.rotation_list[self.current_player_index].deck.append(card)
             self.board_rendering.card_pickup_animation(card, self.current_player_index)
+            if self.current_player_index == self.camera_pov_index:
+                self.rotation_list[self.current_player_index].sort_cards_visual()
+            else:
+                self.board_rendering.update_number_of_cards_in_deck_render(self.current_player_index)
             if self.current_stack > 0:
                 self.current_stack -= 1
+                if self.current_stack == 0:
+                    self.current_stack_text.update_text("+0")
             return card # Card will be returned if needed in case it's needed for checks.
 
     def deck_rebuild_checker(self):
-        if len(self.deck) - 1 < 0:
+        if len(self.board.deck) - 1 < 0:
             self.rebuild_deck()
 
     def rebuild_deck(self):
-        self.deck = self.used_deck[:-1]
-        shuffle(self.deck)
+        self.board.deck = self.used_deck[:-1]
+        self.used_deck = [self.used_deck[-1]]
+        shuffle(self.board.deck)
 
     def reset_players_status(self):
         self.rotation_list[self.current_player_index].status = None
@@ -456,27 +469,22 @@ class GameFlowState:
 
 
 class DealingCardState:
-    def __init__(self, rotation_list, deck, card_rendering):
-        self.deck = deck
-        self.rotation_list = rotation_list
+    def __init__(self, board, board_rendering):
+        self.board = board
         self.current_index = 0
         self.timer = None
         self.dealing_done = False
         self.added_cards = 0
-        self.card_rendering = card_rendering
-        self.camera_pov_index = get_camera_pov_index(self.rotation_list)
+        self.board_rendering = board_rendering
+        self.camera_pov_index = get_camera_pov_index(self.board.rotation_list)
         self.distributing_done = False
         self.end_dealing_state = False
         self.time_began = time.time()
 
     def deal_cards(self):
-        if len(self.rotation_list[-1].deck) == 7:
+        if len(self.board.rotation_list[-1].deck) == 7:
             self.distributing_done = True
-        if self.card_rendering.check_moving_cards_done() and self.distributing_done:
-            # self.rotation_list[0].deck[0].card_color = "black"
-            # self.rotation_list[0].deck[0].card_type = "wild draw"
-            # self.rotation_list[1].deck[0].card_color = "black"
-            # self.rotation_list[1].deck[0].card_type = "wild draw"
+        if self.board_rendering.check_moving_cards_done() and self.distributing_done:
             self.end_dealing_state = True
             return
         if self.timer is None:
@@ -487,11 +495,14 @@ class DealingCardState:
             self.distribute()
 
     def distribute(self):
-        card = self.deck.pop()
-        self.card_rendering.card_pickup_animation(card, self.current_index)
-        self.rotation_list[self.current_index].deck.append(card)
+        card = self.board.deck.pop()
+        set_card_rotation_for_player(card, self.current_index, self.camera_pov_index)
+        self.board_rendering.card_pickup_animation(card, self.current_index)
+        self.board.rotation_list[self.current_index].deck.append(card)
+        if self.current_index != self.camera_pov_index:
+            self.board_rendering.update_number_of_cards_in_deck_render(self.current_index)
         if self.current_index == self.camera_pov_index:
-            self.rotation_list[self.camera_pov_index].sort_cards_visual()
+            self.board.rotation_list[self.camera_pov_index].sort_cards_visual()
         if self.current_index + 1 > 3:
             self.current_index = 0
         else:
@@ -537,17 +548,24 @@ class ScoreBoard:
             # Score positioning
             self.player_score_list[index][2].position[0] = self.score_board_rect.x + (self.score_board_rect.width - (200 * SCALING_RATIO))
             self.player_score_list[index][2].position[1] = self.score_board_rect.y + ((100 + (index * 100)) * SCALING_RATIO)
-        if self.board.round_count == 4:
+        if self.board.rotation_list[self.board.winning_player].score >= 500:
             self.winning_player_text.update_text(f"{self.player_score_list[0][0].name} won the game!")
         else:
-            self.winning_player_text.update_text(f"{self.rotation_list[winning_player_index].name} won the round!")
+            self.winning_player_text.update_text(f"{self.rotation_list[winning_player_index].name} won the round! Goal: 500 points.")
         self.winning_player_text.position[0] = (self.score_board_rect.x + self.score_board_rect.width // 2) - self.winning_player_text.text_surface.get_width() // 2
 
     def add_score(self):
-        scores = [250, 75, 50, 25]
-        for index, player in enumerate(sorted(self.player_score_list, key=lambda x: len(x[0].deck))):
-            player[0].score += scores[index]
-            player[2].update_text(player[0].score)
+        sorted_players = sorted(self.player_score_list, key=lambda x: len(x[0].deck))
+        winning_player = sorted_players[0]
+        for index, player in enumerate(sorted_players[1:]):
+            for card in player[0].deck:
+                if card.card_type in ("wild", "wild draw"):
+                    winning_player[0].score += 50
+                elif card.card_type in ("reverse", "skip", "draw"):
+                    winning_player[0].score += 25
+                else:
+                    winning_player[0].score += card.card_type  # Add scores for card_types between 0-9
+        winning_player[2].update_text(winning_player[0].score)
 
     def draw_board(self):
         pygame.draw.rect(self.display, "black", self.score_board_rect)
